@@ -1,0 +1,332 @@
+---
+title: "WOD Programming"
+description: "Create, manage, and analyze your gym's daily workouts with BoxApp's advanced WOD programming tools."
+---
+
+## Overview
+
+BoxApp's WOD (Workout of the Day) programming system helps you design, publish, and analyze workouts across multiple training tracks with built-in bias checking and structured workout builder.
+
+<CardGroup cols={2}>
+  <Card title="Multi-Track Programming" icon="dumbbell">
+    Create workouts for CrossFit, Novice, Bodybuilding, and Engine tracks
+  </Card>
+  <Card title="WOD Designer" icon="wrench">
+    Visual drag-and-drop interface for building structured workouts
+  </Card>
+  <Card title="Bias Checker" icon="chart-line">
+    Analyze your weekly programming to avoid modality imbalances
+  </Card>
+  <Card title="Movement Library" icon="book">
+    Searchable database of movements with automatic PR tracking
+  </Card>
+</CardGroup>
+
+## Creating a WOD
+
+### Step 1: Open the Designer
+
+Click "New Session" to open the WOD designer (Wods.tsx:470-491).
+
+### Step 2: Select Track
+
+Choose from 4 training tracks:
+
+<Accordion title="CrossFit">
+Traditional CrossFit programming with:
+- Weightlifting, Gymnastics, Mono, and Metcon modalities
+- 7-day bias tracking to ensure balanced programming
+- Benchmark WOD tracking
+</Accordion>
+
+<Accordion title="Novice">
+Beginner-friendly workouts with:
+- Scaled movements and lighter loads
+- Focus on foundational strength and technique
+- Progressive programming structure
+</Accordion>
+
+<Accordion title="Bodybuilding">
+Hypertrophy-focused sessions:
+- Volume-based training
+- Isolation movements
+- Aesthetic and strength goals
+</Accordion>
+
+<Accordion title="Engine">
+Conditioning and endurance:
+- Monostructural work (running, rowing, biking)
+- Interval training
+- Aerobic capacity building
+</Accordion>
+
+### Step 3: Add Modalities
+
+Select modalities that appear in your workout (Wods.tsx:581-608):
+
+```typescript
+// Wods.tsx:582-606
+{['Weightlifting', 'Gymnastics', 'Mono', 'Metcon'].map((m) => {
+  const isSelected = (newWOD.modalities || []).includes(m);
+  return (
+    <Button
+      onClick={() => {
+        const next = isSelected
+          ? (newWOD.modalities || []).filter(curr => curr !== m)
+          : [...(newWOD.modalities || []), m];
+        setNewWOD({ ...newWOD, modalities: next });
+      }}
+    >
+      {t(`wods.modalities.${m.toLowerCase()}`)}
+    </Button>
+  );
+})}
+```
+
+### Step 4: Build Session Structure
+
+Use the WOD Designer to create workout blocks (WODDesigner.tsx:81-89):
+
+```typescript
+// WODDesigner.tsx:81-89
+const addBlock = (type: SessionBlock['type']) => {
+  const newBlock: SessionBlock = {
+    id: crypto.randomUUID(),
+    type,
+    title: BLOCK_TEMPLATES[type].title,
+    items: []
+  };
+  setSessionBlocks([...sessionBlocks, newBlock]);
+};
+```
+
+## Session Block Types
+
+<CardGroup cols={3}>
+  <Card title="Warmup" icon="flame" color="#f97316">
+    Dynamic stretching and movement prep
+  </Card>
+  <Card title="Strength" icon="dumbbell" color="#3b82f6">
+    Barbell work, lifting progressions
+  </Card>
+  <Card title="Conditioning" icon="zap" color="#a855f7">
+    High-intensity interval training
+  </Card>
+  <Card title="WOD" icon="timer" color="#ef4444">
+    Main workout (For Time, AMRAP, EMOM)
+  </Card>
+  <Card title="Accessory" icon="target" color="#22c55e">
+    Supplemental strength or skill work
+  </Card>
+  <Card title="Cooldown" icon="activity" color="#64748b">
+    Static stretching and recovery
+  </Card>
+</CardGroup>
+
+## WOD Formats
+
+For WOD and Conditioning blocks, specify the workout format (WODDesigner.tsx:228-244):
+
+<Accordion title="For Time">
+Complete prescribed work as fast as possible. Configure:
+- Time cap
+- Number of rounds
+- Tie-break (if applicable)
+</Accordion>
+
+<Accordion title="AMRAP (As Many Rounds As Possible)">
+Complete as many rounds as possible in the given time:
+- Duration (e.g., "20 min")
+- Round structure
+</Accordion>
+
+<Accordion title="EMOM (Every Minute On the Minute)">
+Complete work at the start of each minute:
+- Duration
+- Work per minute
+</Accordion>
+
+<Accordion title="Tabata">
+20 seconds work, 10 seconds rest:
+- Number of rounds
+- Movements
+</Accordion>
+
+<Accordion title="RM (Rep Max)">
+Find max weight for prescribed reps:
+- Rep scheme (e.g., "3RM")
+- Movement
+</Accordion>
+
+<Accordion title="Complex">
+Multiple movements performed in sequence:
+- Movement order
+- Rep scheme
+</Accordion>
+
+## Adding Movements
+
+Search and add movements from your library (WODDesigner.tsx:338-351):
+
+```typescript
+// WODDesigner.tsx:343-351
+<Input
+  placeholder="SEARCH MOVEMENTS..."
+  value={activeSearchBlockId === block.id ? searchQuery : ''}
+  onFocus={() => setActiveSearchBlockId(block.id)}
+  onChange={(e) => {
+    setSearchQuery(e.target.value);
+    setActiveSearchBlockId(block.id);
+  }}
+/>
+```
+
+<Note>
+Movements are searchable by name and category. The system paginates results for better performance.
+</Note>
+
+### Movement Configuration
+
+For each movement, specify (WODDesigner.tsx:304-324):
+
+- **Reps/Time**: "10", "30 sec", "Max"
+- **Weight**: "135#", "70% 1RM", "Bodyweight"
+- **Notes**: Scaling options, form cues
+
+## Stimulus and Scaling
+
+Define the workout's intent and scaling options (Wods.tsx:624-633):
+
+### Stimulus
+Describe the intended workout feel:
+> "Fast singles on power clean. Breathing should be heavy but controlled. 8-12 minute time domain."
+
+### Scaling Options
+Provide modification guidance:
+> "Reduce weight to maintain unbroken sets. Scale bar muscle-ups to C2B pull-ups or jumping pull-ups."
+
+<Tip>
+Clear stimulus descriptions help athletes choose appropriate weights and understand workout intent.
+</Tip>
+
+## Bias Checker
+
+BoxApp analyzes your weekly programming to prevent modality imbalances (Wods.tsx:420-459):
+
+```typescript
+// Wods.tsx:420-459
+const last7DaysBias = useMemo(() => {
+  const counts = { weightlifting: 0, gymnastics: 0, mono: 0, metcon: 0 };
+  
+  const filteredWodsForWeek = wods.filter(w => {
+    if (w.track !== currentTrack || w.id === editingWodId) return false;
+    const d = w.date?.split('T')[0];
+    return d && d >= mondayStr && d <= saturdayStr;
+  });
+
+  allWodsForAnalysis.forEach(w => {
+    (w.modalities || []).forEach(m => {
+      const lower = m.toLowerCase();
+      if (lower.includes('weightlifting')) counts.weightlifting++;
+      if (lower.includes('gymnastics')) counts.gymnastics++;
+      if (lower.includes('mono')) counts.mono++;
+      if (lower.includes('metcon')) counts.metcon++;
+    });
+  });
+  return counts;
+}, [wods, newWOD.modalities, newWOD.track, newWOD.date]);
+```
+
+<Warning>
+If any modality appears 5+ times in a week, consider diversifying to avoid overtraining specific energy systems.
+</Warning>
+
+## Publishing Workflows
+
+When you publish a WOD (Wods.tsx:263-310):
+
+1. **Generate metcon text** from session blocks
+2. **Save structure** for detailed view
+3. **Assign to date** and track
+4. **Notify members** (if enabled)
+
+```typescript
+// Wods.tsx:268-278
+let finalMetcon = newWOD.metcon;
+if (sessionBlocks.length > 0) {
+  finalMetcon = sessionBlocks.map(b => 
+    `### ${b.title.toUpperCase()}\n${generateBlockContent(b)}`
+  ).join('\n\n');
+}
+
+const wodData = {
+  ...newWOD,
+  metcon: finalMetcon,
+  structure: sessionBlocks,
+  box_id: currentBox?.id
+};
+```
+
+## Viewing and Filtering
+
+### Track Filter
+Filter WODs by track (Wods.tsx:654-680):
+- All Tracks
+- CrossFit (primary color)
+- Novice (green)
+- Bodybuilding (blue)
+- Engine (orange)
+
+### Search
+Full-text search across titles and workout content (Wods.tsx:365-372).
+
+### Date Filters
+- **Month Navigator**: Browse by month
+- **Date Picker**: Jump to specific date
+- **Week Grouping**: WODs grouped by week (Monday-Saturday)
+
+### View Modes
+
+<CardGroup cols={2}>
+  <Card title="Grid View" icon="grid">
+    Rich cards with full workout details (12 per page)
+  </Card>
+  <Card title="Compact View" icon="list">
+    Condensed list for quick scanning (50 per page)
+  </Card>
+</CardGroup>
+
+## Copying WODs
+
+Share workouts with members (Wods.tsx:218-250):
+
+```typescript
+// Wods.tsx:218-245
+const handleCopyWod = (wod: WOD) => {
+  let cleanText = wod.structure.map(block => {
+    const items = block.items.map(item => {
+      let line = `- ${item.movementName}`;
+      if (item.reps) line += `: ${item.reps}`;
+      if (item.weight) line += ` (${item.weight})`;
+      return line;
+    }).join('\n');
+
+    let blockTitle = block.title.toUpperCase();
+    if (block.sets) blockTitle += ` [${block.sets} SETS]`;
+
+    return `[${blockTitle}]\n${items}`;
+  }).join('\n\n');
+
+  const finalShareText = `${wod.title.toUpperCase()}\n\n${cleanText}\n\n...`;
+  navigator.clipboard.writeText(finalShareText);
+};
+```
+
+## Best Practices
+
+1. **Program 1 week ahead**: Gives members time to prepare
+2. **Use bias checker daily**: Avoid overtraining specific modalities
+3. **Include stimulus**: Helps athletes self-regulate intensity
+4. **Provide scaling**: Make workouts accessible to all levels
+5. **Test workouts**: Run them yourself before publishing
+6. **Track benchmarks**: Repeat signature workouts quarterly

@@ -1,0 +1,317 @@
+---
+title: Using the WOD Designer
+description: Create and structure workouts with the powerful WOD Designer tool
+---
+
+# Using the WOD Designer
+
+The WOD Designer is a drag-and-drop workout builder that helps you create structured, professional programming for your athletes. Build complete training sessions with multiple blocks, movements, and formats.
+
+## Overview
+
+The WOD Designer allows you to create structured workouts by combining different training blocks. Each block can contain multiple movements with detailed parameters for reps, weight, and notes.
+
+## Block Types
+
+BoxApp provides six pre-configured block types, each with distinct styling and purpose:
+
+<Steps>
+  <Step title="Warmup Block">
+    **Color**: Orange  
+    **Icon**: Flame  
+    **Purpose**: Prepare athletes for the main workout
+
+    Warmup blocks typically include:
+    - General movement prep
+    - Dynamic stretching
+    - Skill practice
+    - Heart rate elevation
+
+    <Tip>
+      Keep warmup blocks simple with clear movement cues. Athletes should be able to flow through the warmup without confusion.
+    </Tip>
+  </Step>
+
+  <Step title="Strength Block">
+    **Color**: Blue  
+    **Icon**: Dumbbell  
+    **Purpose**: Build force production and technical proficiency
+
+    ### Available Settings
+    - **Format**: RM (Rep Max), Complex, or custom
+    - **Sets/Rounds**: Number of working sets
+    - **Time Cap/Duration**: Total time allowed
+    - **Tie Break**: Tiebreaker criteria
+
+    Strength blocks support detailed programming:
+    ```
+    Back Squat
+    5-5-5-3-3-3
+    @ 70-75-80-85-90-95%
+    ```
+  </Step>
+
+  <Step title="Conditioning Block">
+    **Color**: Purple  
+    **Icon**: Zap  
+    **Purpose**: Develop aerobic and anaerobic capacity
+
+    ### Format Options
+    - **For Time**: Complete work as fast as possible
+    - **AMRAP**: As Many Rounds/Reps As Possible
+    - **EMOM**: Every Minute On the Minute
+    - **Tabata**: 20s work / 10s rest intervals
+
+    Each format has specific fields that appear based on selection.
+  </Step>
+
+  <Step title="WOD Block">
+    **Color**: Red  
+    **Icon**: Timer  
+    **Purpose**: Main workout of the day
+
+    This is your primary training stimulus. The WOD block includes all conditioning format options plus:
+    - Rounds specification
+    - Time cap enforcement
+    - Tie break parameters
+
+    <Warning>
+      WOD blocks are highlighted in red to indicate high intensity. Ensure proper scaling options are provided.
+    </Warning>
+  </Step>
+
+  <Step title="Accessory Block">
+    **Color**: Green  
+    **Icon**: Target  
+    **Purpose**: Supplemental work and weakness targeting
+
+    Use accessory blocks for:
+    - Hypertrophy work
+    - Unilateral movements
+    - Mobility drills
+    - Core development
+  </Step>
+
+  <Step title="Cooldown Block">
+    **Color**: Slate  
+    **Icon**: Activity  
+    **Purpose**: Recovery and restoration
+
+    Cooldown blocks help athletes:
+    - Lower heart rate gradually
+    - Perform static stretching
+    - Use recovery tools
+    - Reflect on performance
+  </Step>
+</Steps>
+
+## Building a Workout
+
+### Adding Blocks
+
+1. Click any block type button at the top of the designer
+2. The block appears at the bottom of your workout structure
+3. Blocks are color-coded for easy identification
+
+<Note>
+  You can add multiple blocks of the same type. For example, create separate strength blocks for different movements or multiple conditioning pieces.
+</Note>
+
+### Configuring Block Settings
+
+For WOD, Conditioning, and Strength blocks:
+
+| Field | Description | Example |
+|-------|-------------|----------|
+| **Format** | Workout structure type | AMRAP, For Time, EMOM |
+| **Time Cap/Duration** | Total time for block | "20 min" or "12:00" |
+| **Rounds/Sets** | Number of rounds | "5 rounds" or "3 sets" |
+| **Tie Break** | Tiebreaker criteria | "time to complete 21 thrusters" |
+
+### Adding Movements
+
+Within each block:
+
+<Steps>
+  <Step title="Search for Movement">
+    1. Click the search box at the bottom of any block
+    2. Type the movement name (e.g., "thruster", "pull-up")
+    3. Results filter in real-time from your movement database
+    4. Use pagination if you have many movements (5 per page)
+
+    The search shows:
+    - Movement name (bold, uppercase)
+    - Category label (small text below)
+  </Step>
+
+  <Step title="Add Movement to Block">
+    Click any movement from search results to add it to the block. The movement appears as a new row with editable fields.
+  </Step>
+
+  <Step title="Configure Movement Parameters">
+    Each movement row includes:
+
+    - **Movement Name**: Auto-filled from your selection
+    - **Reps/Time**: Enter "21" or "400m" or "1:30"
+    - **Weight**: Enter "95#" or "70kg" or "RX"
+    - **Notes**: Add scaling, form cues, or modifications
+
+    Example:
+    ```
+    Thruster | 21 reps | 95# | scale to 75# or DB
+    Pull-ups | 21 reps | RX | scale to jumping
+    ```
+  </Step>
+
+  <Step title="Remove Movements">
+    Hover over any movement row and click the trash icon that appears to remove it from the block.
+  </Step>
+</Steps>
+
+### Reordering Blocks
+
+The WOD Designer uses drag-and-drop:
+
+1. Click and hold the grip handle (six dots) on any block
+2. Drag the block up or down
+3. Release to place it in the new position
+4. Your workout order updates automatically
+
+<Tip>
+  Standard workout order: Warmup → Strength → WOD → Accessory → Cooldown. But you can arrange blocks however your programming demands.
+</Tip>
+
+## Workout Format Examples
+
+### For Time WOD
+
+```
+WOD Block - "Fran"
+Format: For Time
+Time Cap: 5:00
+Rounds: Not applicable
+
+21-15-9 reps for time:
+- Thruster (95#)
+- Pull-ups
+```
+
+### AMRAP
+
+```
+WOD Block - "Cindy"
+Format: AMRAP
+Duration: 20 min
+
+As many rounds as possible:
+- 5 Pull-ups
+- 10 Push-ups
+- 15 Air Squats
+```
+
+### EMOM
+
+```
+Conditioning Block
+Format: EMOM
+Duration: 12 min
+
+Every minute perform:
+- Minute 1: 15 Wall Balls
+- Minute 2: 12 Box Jumps
+- Minute 3: 9 Burpees
+```
+
+### Strength Work
+
+```
+Strength Block
+Format: RM
+Sets: 5x3
+
+- Back Squat @ 80-85%
+  Notes: 2 min rest between sets
+```
+
+## Advanced Features
+
+### Multiple Movement Search
+
+The search stays active until you close it, letting you add multiple movements quickly:
+
+1. Search for first movement
+2. Click to add
+3. Search immediately available for next movement
+4. Continue adding
+5. Click "CLOSE" when done
+
+### Block Customization
+
+Edit the block title directly:
+- Click the title field
+- Type your custom name
+- Examples: "Power Snatch Complex", "Engine Builder", "Skill Work"
+
+### Block-Specific Formats
+
+<Accordion title="For Time Options">
+  - Shows **Rounds** field
+  - Shows **Time Cap** field
+  - Perfect for: Task-based workouts, hero WODs, benchmark tests
+</Accordion>
+
+<Accordion title="AMRAP Options">
+  - Shows **Duration** field (in minutes)
+  - Hides rounds (it's in the result)
+  - Perfect for: Volume accumulation, endurance tests
+</Accordion>
+
+<Accordion title="EMOM Options">
+  - Shows **Duration** field
+  - Work is performed at the start of each minute
+  - Perfect for: Skill practice, pacing work, interval training
+</Accordion>
+
+<Accordion title="Tabata Options">
+  - 20 seconds work / 10 seconds rest
+  - Shows **Duration** (typically 4 min = 8 rounds)
+  - Perfect for: High-intensity intervals, single-modality work
+</Accordion>
+
+## Best Practices
+
+<Warning>
+  Always provide scaling options in the Notes field for movements that require technical proficiency or specific equipment.
+</Warning>
+
+### Clear Programming
+- Use consistent notation (21-15-9, not 21/15/9)
+- Specify weight standards (95/65 or RX/Scaled)
+- Include time domains
+- Add rest periods when relevant
+
+### Movement Selection
+- Choose movements that complement each other
+- Avoid conflicting muscle groups without purpose
+- Consider equipment availability
+- Balance technical and accessible movements
+
+### Block Organization
+- Keep warmup simple and effective (10-12 min max)
+- Allow adequate strength work time (15-20 min)
+- Main WOD should be the focus (10-25 min)
+- Keep accessory work targeted (10-15 min)
+- Don't skip the cooldown
+
+## Saving Your Work
+
+The WOD Designer is typically embedded in larger forms for:
+- Creating new WODs in the programming library
+- Scheduling sessions with attached workouts
+- Building competition events
+
+Your block structure and movements are saved when you submit the parent form.
+
+<Tip>
+  The designer auto-generates unique IDs for blocks and movements. You can safely add, remove, and reorder without losing data integrity.
+</Tip>

@@ -1,0 +1,286 @@
+---
+title: Admin Role
+description: Complete reference for Admin users in BoxApp - full system access and management capabilities
+---
+
+# Admin Role
+
+As an Admin, you have complete access to all BoxApp features and settings. You're responsible for managing your box's operations, staff, members, and system configuration.
+
+## Core Permissions
+
+Admins have unrestricted access to the entire platform, including:
+
+- **Full Dashboard Access**: View comprehensive analytics and box-wide metrics
+- **User Management**: Create, modify, and delete all user accounts
+- **Role Assignment**: Assign and modify roles for all users
+- **System Configuration**: Access to all settings and customization options
+- **Financial Operations**: Complete billing and payment management
+- **Security Controls**: Access audit logs and permission matrices
+
+<Note>
+Only users with the `role_id` set to `'admin'` in the profiles table have Admin privileges. This role is assigned during user creation or modified through the Roles page.
+</Note>
+
+## What You Can Do
+
+### Dashboard & Analytics
+
+You see the **Command Center** dashboard with comprehensive operational analytics:
+
+<CardGroup cols={2}>
+  <Card title="Community Metrics" icon="users">
+    Track total registered athletes, growth cycles, and membership trends across your box.
+  </Card>
+  <Card title="Daily Programming" icon="trophy">
+    Monitor active WODs, programming tracks, and workout intensity levels.
+  </Card>
+  <Card title="Attendance Analytics" icon="chart-line">
+    Review 30-day attendance rates, retention metrics, and class participation patterns.
+  </Card>
+  <Card title="Recent Benchmarks" icon="medal">
+    See latest PR submissions, RX performances, and community records.
+  </Card>
+</CardGroup>
+
+The admin dashboard displays:
+- Total member count with growth progress
+- Today's WOD details with track and intensity badges
+- 30-day attendance percentage with visual trend bars
+- Recent benchmark results from the community
+- Pending leads counter with quick-access alerts
+- System pulse with actionable task notifications
+
+### Member Management
+
+Access the **Members** page to:
+
+- View all athletes, coaches, and staff members
+- Search and filter members by name, email, or role
+- View member profiles with detailed information
+- Manage member status and membership plans
+- Track member attendance and performance metrics
+- Export member data for reporting
+
+<Tip>
+Admins can see additional admin-only controls in the Members page that allow for advanced member management operations.
+</Tip>
+
+### Lead Management
+
+Use the **Leads** page to:
+
+- View all incoming prospect inquiries
+- Track lead status (new, contacted, converted, lost)
+- Filter leads by date range and status
+- Manage follow-up communications
+- Convert leads to members
+- Monitor lead conversion metrics
+
+### Role & Permission Management
+
+The **Roles** page provides three powerful tabs:
+
+**User List Tab**:
+- View all users with their assigned roles
+- See security status and encryption indicators
+- Modify user roles via dropdown (if you're Root user)
+- Search users by name or email
+- Paginated view for large user bases
+
+**Access Matrix Tab**:
+- View permission mappings for all pages
+- See which roles can access each feature
+- Modify permissions (Root user only)
+- Visual checkboxes show access patterns
+- Save changes to the role_permissions table
+
+**Testing Lab Tab** (Admin-only):
+- Quick-switch between test accounts
+- Test user experiences for different roles
+- Verify permission configurations
+- Access demo accounts with preset credentials
+
+<Warning>
+Role modifications are restricted to Root users (`root@test.com`). Standard admins can view the permission matrix but cannot modify it. This prevents accidental lockouts from critical features.
+</Warning>
+
+### Audit Logs
+
+Monitor system activity through **Audit Logs**:
+
+- Track all user actions and system events
+- Filter by date, user, or action type
+- Review security-relevant events
+- Export logs for compliance reporting
+- Monitor unauthorized access attempts
+
+### Financial Management
+
+Access **Billing** to:
+
+- Process member payments and subscriptions
+- View payment history and outstanding balances
+- Manage membership plans and pricing
+- Generate financial reports
+- Handle refunds and adjustments
+- Export billing data
+
+### Programming & Workouts
+
+Manage training through **WODs** page:
+
+- Create and publish daily workouts
+- Organize programming by tracks (RX, Scaled, Masters, etc.)
+- Schedule future WODs
+- Review athlete results and submissions
+- Track workout completion rates
+- Clone and template popular workouts
+
+### Movement Library
+
+Use the **Movements** page to:
+
+- Create and maintain movement database
+- Add video demonstrations and descriptions
+- Tag movements by category and difficulty
+- Reference movements in WOD programming
+- Ensure standardized movement names
+
+### Competition Management
+
+Access **Competitions** to:
+
+- Create and manage box competitions
+- Set up competition divisions and scoring
+- Track participant registrations
+- Monitor live leaderboards
+- Generate competition reports
+- Publish results to athletes
+
+### Box Display Configuration
+
+Configure the **Box Display** (TV view) to:
+
+- Show today's WOD to athletes
+- Display leaderboards and results
+- Broadcast announcements
+- Show class schedules
+- Customize branding and themes
+
+### Settings & Customization
+
+Access **Settings** for:
+
+- Box profile (name, logo, contact info)
+- Theme customization (colors, fonts, design style)
+- Navigation configuration and ordering
+- Favicon and branding elements
+- Language preferences
+- Notification settings
+
+## Navigation Access
+
+You can access all navigation items:
+
+- Dashboard (Command Center view)
+- Schedule (class booking and management)
+- Members (admin access with full controls)
+- Roles (view and manage - Root can edit)
+- Audit Logs (security and activity monitoring)
+- Leads (prospect management)
+- Billing (financial operations)
+- Programming (WOD creation and management)
+- Movements (exercise library management)
+- Benchmarks (PR tracking and records)
+- Competitions (event management)
+- Box Display (TV/kiosk configuration)
+- Analytics (business intelligence dashboard)
+- Settings (system configuration)
+- Profile (your personal account)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Monitoring" icon="eye">
+    Check the dashboard daily for pending leads, attendance trends, and system alerts to stay on top of operations.
+  </Card>
+  <Card title="Role Assignment" icon="shield">
+    Be careful when assigning admin roles. Grant the minimum necessary permissions to staff members.
+  </Card>
+  <Card title="Audit Review" icon="list-check">
+    Periodically review audit logs to ensure system security and identify any unusual activity patterns.
+  </Card>
+  <Card title="Data Backup" icon="database">
+    Regularly export member and billing data for backup purposes and compliance requirements.
+  </Card>
+</CardGroup>
+
+## Common Workflows
+
+### Onboarding a New Member
+
+1. Convert lead to member in the Leads page
+2. Assign membership plan and billing cycle
+3. Set role to "athlete" in Members page
+4. Member receives welcome email with login credentials
+5. Member can book classes and log results
+
+### Managing Staff Access
+
+1. Navigate to Members page
+2. Create new user account for staff member
+3. Go to Roles page to assign appropriate role:
+   - **Coach**: For training staff who manage classes
+   - **Receptionist**: For front-desk staff handling sales and bookings
+   - **Admin**: For managers who need full system access
+4. Verify permissions in Access Matrix tab
+5. Staff member can log in with assigned role permissions
+
+### Publishing Daily Programming
+
+1. Navigate to WODs page
+2. Click "Create WOD" button
+3. Select date and track (RX, Scaled, etc.)
+4. Enter workout title and description
+5. Add movements from the Movement library
+6. Specify time cap, rounds, or weight prescriptions
+7. Publish WOD - it appears on athlete dashboards and Box Display
+
+## Technical Details
+
+### Role Identification
+
+The system identifies admins through the `role_id` field in the profiles table:
+
+```typescript
+const isAdmin = userProfile?.role_id === 'admin';
+```
+
+### Protected Routes
+
+Admin-only routes use the `ProtectedRoute` component with allowed roles:
+
+```typescript
+<ProtectedRoute allowedRoles={['admin']}>
+  <Analytics />
+</ProtectedRoute>
+```
+
+Admin shares access to some routes with other roles:
+- **Members**: admin, coach, receptionist
+- **Leads**: admin, receptionist
+- **Billing**: admin, receptionist
+- **Movements**: admin, coach
+- **Competitions**: admin, coach
+- **Box Display**: admin, coach, receptionist
+
+### Navigation Filtering
+
+The navigation system automatically filters menu items based on your role, showing only accessible features in the sidebar.
+
+## Related Documentation
+
+- [Coach Role](/roles/coach) - Learn about coach permissions and workflows
+- [Athlete Role](/roles/athlete) - Understand the athlete experience
+- [Box Setup Guide](/guides/box-setup) - Configure your box settings and branding

@@ -1,0 +1,474 @@
+---
+title: "Billing & Subscription Management"
+description: "Manage membership plans, track revenue, monitor expenses, and generate financial reports with BoxApp's billing system."
+---
+
+## Overview
+
+BoxApp's billing system provides comprehensive financial management for your gym, including membership plans, invoice tracking, expense management, and detailed analytics.
+
+<CardGroup cols={2}>
+  <Card title="Membership Plans" icon="credit-card">
+    Create flexible monthly, annual, or credit-based plans
+  </Card>
+  <Card title="Revenue Tracking" icon="trending-up">
+    Monitor MRR, ARPU, and collection rates
+  </Card>
+  <Card title="Expense Management" icon="trending-down">
+    Track recurring and one-time expenses by category
+  </Card>
+  <Card title="Financial Reports" icon="file-text">
+    Export PDF and CSV reports for accounting
+  </Card>
+</CardGroup>
+
+## Dashboard KPIs
+
+The billing dashboard displays 6 key performance indicators (Billing.tsx:926-970):
+
+### Monthly Recurring Revenue (MRR)
+
+```typescript
+// Billing.tsx:254-259
+const mrr = activeMemberships.reduce((acc: number, m: any) => {
+  const planPrice = m.plans?.price || 0;
+  const interval = plans.find(p => p.id === m.plan_id)?.interval;
+  if (interval === 'annual') return acc + (planPrice / 12);
+  return acc + planPrice;
+}, 0);
+```
+
+<Note>
+Annual plan revenue is divided by 12 to calculate monthly value.
+</Note>
+
+### Monthly Expenses
+
+Sum of all expenses within the selected date range (Billing.tsx:262).
+
+### Net Margin
+
+Revenue minus expenses with percentage calculation (Billing.tsx:279-281):
+
+```typescript
+const netMarginAmount = periodRevenue - periodExpenses;
+const netMarginPercent = periodRevenue > 0 
+  ? (netMarginAmount / periodRevenue) * 100 
+  : 0;
+```
+
+### Average Revenue Per User (ARPU)
+
+```typescript
+// Billing.tsx:273
+const arpu = activeMemberships.length > 0 
+  ? mrr / activeMemberships.length 
+  : 0;
+```
+
+### Churn Rate
+
+Percentage of memberships that expired in the selected period (Billing.tsx:284-294).
+
+<Warning>
+High churn rate (>5%) indicates member retention issues. Review pricing and member satisfaction.
+</Warning>
+
+### Lifetime Value (LTV)
+
+```typescript
+// Billing.tsx:296-304
+const avgLifespanMonths = activeMemberships.length > 0
+  ? activeMemberships.reduce((acc: number, m: any) => {
+      const start = parseISO(m.start_date || m.created_at);
+      const months = Math.max(1, (now.getTime() - start.getTime()) / (30 * 24 * 60 * 60 * 1000));
+      return acc + months;
+    }, 0) / activeMemberships.length
+  : 1;
+const ltv = arpu * avgLifespanMonths;
+```
+
+## Creating Membership Plans
+
+Define flexible pricing structures (Billing.tsx:518-544):
+
+### Step 1: Open Plan Dialog
+
+Click "Create Plan" from the Finance tab.
+
+### Step 2: Configure Plan Details
+
+```typescript
+// Billing.tsx:520-527
+const planData = {
+  name: newPlan.name,
+  interval: newPlan.interval,
+  duration_days: Number(newPlan.duration_days),
+  price: parseFloat(newPlan.price),
+  box_id: currentBox?.id,
+  total_credits: newPlan.interval === 'credits' ? newPlan.total_credits : 0
+};
+```
+
+Required fields:
+- **Name**: Plan title (e.g., "Unlimited Monthly")
+- **Price**: Monthly cost
+- **Interval**: `monthly`, `annual`, or `credits`
+- **Duration**: Days until renewal (typically 30)
+
+### Plan Intervals
+
+<Accordion title="Monthly">
+Standard recurring monthly billing:
+- Auto-renews every 30 days
+- Common for unlimited memberships
+</Accordion>
+
+<Accordion title="Annual">
+Yearly subscription with upfront payment:
+- 365-day duration
+- Often discounted vs. monthly
+- Revenue amortized to MRR (÷12)
+</Accordion>
+
+<Accordion title="Credits">
+Punch-card style memberships:
+- Fixed number of class credits
+- No auto-renewal
+- Expires after duration_days
+</Accordion>
+
+## Expense Tracking
+
+Log and categorize gym expenses (Billing.tsx:566-591):
+
+### Adding Expenses
+
+```typescript
+// Billing.tsx:569-575
+const expenseData = {
+  description: newExpense.description,
+  category: newExpense.category,
+  amount: parseFloat(newExpense.amount),
+  date: newExpense.date,
+  box_id: currentBox?.id
+};
+```
+
+### Expense Categories
+
+```typescript
+// Billing.tsx:121-124
+const EXPENSE_CATEGORIES = [
+  'Rent', 'Utilities', 'Staff', 'Equipment', 'Marketing',
+  'Insurance', 'Maintenance', 'Software', 'Taxes', 'Training', 'Other'
+];
+```
+
+<Tip>
+Consistent categorization enables accurate expense distribution analysis in pie charts.
+</Tip>
+
+## Membership Assignment
+
+Assign plans to athletes (Billing.tsx:736-794):
+
+### Step 1: Select Athlete
+
+Search and select from your member list:
+
+```typescript
+// Billing.tsx:747-750
+const existingMembership = allMemberships.find(m => 
+  (m.athlete_id || m.user_id) === newMembership.userId
+);
+if (existingMembership) {
+  addNotification('error', 'Member already has a membership');
+  return;
+}
+```
+
+<Warning>
+BoxApp prevents duplicate active memberships per athlete.
+</Warning>
+
+### Step 2: Choose Plan
+
+Select from available plans.
+
+### Step 3: Set Start Date
+
+```typescript
+// Billing.tsx:756-768
+const startDateObj = newMembership.isUnclear 
+  ? null 
+  : new Date(newMembership.startDate);
+
+let endDateObj = null;
+let status = 'pending';
+
+if (startDateObj) {
+  endDateObj = new Date(startDateObj);
+  endDateObj.setDate(endDateObj.getDate() + (plan?.duration_days || 30));
+  const today = new Date();
+  status = compareDate <= today ? 'active' : 'pending';
+}
+```
+
+<Note>
+Memberships with start dates in the future are marked "pending" until that date.
+</Note>
+
+## Invoice Management
+
+Track and manage payments (Billing.tsx:613-659):
+
+### Marking Memberships as Paid
+
+```typescript
+// Billing.tsx:614-652
+const handleMarkPaid = async (membership: any) => {
+  const plan = plans.find(p => p.id === membership.plan_id);
+  const amount = plan?.price || 0;
+
+  // Create invoice
+  await supabase.from('invoices').insert([{
+    athlete_id: membership.athlete_id || membership.user_id,
+    box_id: currentBox?.id,
+    amount: amount,
+    status: 'paid',
+    membership_id: membership.id
+  }]);
+
+  // Extend membership
+  let newEndDate = new Date();
+  const currentEndDate = membership.end_date 
+    ? new Date(membership.end_date) 
+    : null;
+
+  if (currentEndDate && currentEndDate > new Date()) {
+    newEndDate = new Date(currentEndDate);
+  }
+
+  newEndDate.setDate(newEndDate.getDate() + (plan?.duration_days || 30));
+
+  await supabase.from('memberships').update({
+    status: 'active',
+    end_date: newEndDate.toISOString()
+  }).eq('id', membership.id);
+};
+```
+
+### Invoice Statuses
+
+- **Paid**: Payment received and processed
+- **Pending**: Invoice sent, awaiting payment
+- **Overdue**: Past due date without payment
+
+## Delinquency Alerts
+
+Proactive alerts for expiring memberships (Billing.tsx:1053-1099):
+
+### Expiring Soon (7 Days)
+
+```typescript
+// Billing.tsx:307-312
+const expiringIn7Days = allMemberships.filter(m => {
+  if (!m.end_date || m.status !== 'active') return false;
+  const endDateObj = parseISO(m.end_date);
+  const diffDays = Math.ceil((endDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 && diffDays <= 7;
+});
+```
+
+### Expired Without Renewal
+
+```typescript
+// Billing.tsx:314-318
+const expiredNoRenewal = allMemberships.filter(m => {
+  if (!m.end_date) return false;
+  const endDateObj = parseISO(m.end_date);
+  return endDateObj < now && (m.status === 'active' || m.status === 'expired');
+});
+```
+
+<Warning>
+Expired memberships without renewal require immediate follow-up to prevent churn.
+</Warning>
+
+## Financial Charts
+
+### Income vs. Expenses (6 Months)
+
+```typescript
+// Billing.tsx:342-368
+const monthlyChartData = useMemo(() => {
+  const data = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+
+    const income = invoices
+      .filter(inv => {
+        const id = parseISO(inv.created_at);
+        return id.getMonth() === month && id.getFullYear() === year && inv.status === 'paid';
+      })
+      .reduce((acc, inv) => acc + Number(inv.amount), 0);
+
+    const expense = expenses
+      .filter(e => {
+        const ed = parseISO(e.date);
+        return ed.getMonth() === month && ed.getFullYear() === year;
+      })
+      .reduce((acc, e) => acc + Number(e.amount), 0);
+
+    data.push({ month: monthLabel, income, expenses: expense });
+  }
+  return data;
+}, [invoices, expenses]);
+```
+
+### Expense Distribution Pie Chart
+
+```typescript
+// Billing.tsx:374-381
+const expensePieData = useMemo(() => {
+  const categoryMap: Record<string, number> = {};
+  filteredExpensesByDate.forEach(e => {
+    categoryMap[e.category] = (categoryMap[e.category] || 0) + Number(e.amount);
+  });
+
+  return Object.entries(categoryMap).map(([name, value]) => ({ name, value }));
+}, [filteredExpensesByDate]);
+```
+
+## Plan Profitability Analysis
+
+View revenue per plan (Billing.tsx:387-394):
+
+```typescript
+// Billing.tsx:387-394
+const planStats = useMemo(() => {
+  return plans.map(plan => {
+    const membersOnPlan = allMemberships.filter(m => 
+      m.plan_id === plan.id && m.status === 'active'
+    ).length;
+    const revenue = membersOnPlan * plan.price;
+    return { ...plan, membersOnPlan, revenue };
+  }).sort((a, b) => b.revenue - a.revenue);
+}, [plans, allMemberships]);
+```
+
+## Exporting Reports
+
+### PDF Reports
+
+Generate comprehensive PDF reports (Billing.tsx:399-467):
+
+```typescript
+// Billing.tsx:399-467
+const generatePDFReport = () => {
+  const doc = new jsPDF();
+  
+  // Header
+  doc.setFontSize(20);
+  doc.text('BoxApp Financial Report', 14, 20);
+  doc.text(`Period: ${startDate} - ${endDate}`, 14, 28);
+  
+  // KPI Summary Table
+  autoTable(doc, {
+    head: [['Metric', 'Value']],
+    body: [
+      ['MRR', `$${kpis.mrr.toFixed(2)}`],
+      ['Revenue', `$${kpis.periodRevenue.toFixed(2)}`],
+      ['Expenses', `$${kpis.periodExpenses.toFixed(2)}`],
+      ['Net Margin', `$${kpis.netMarginAmount.toFixed(2)}`]
+    ]
+  });
+
+  // Invoices Table
+  doc.addPage();
+  autoTable(doc, {
+    head: [['Athlete', 'Amount', 'Status', 'Date']],
+    body: invoiceRows
+  });
+
+  // Expenses Table
+  doc.addPage();
+  autoTable(doc, {
+    head: [['Description', 'Category', 'Amount', 'Date']],
+    body: expenseRows
+  });
+
+  doc.save(`BoxApp_Report_${startDate}_${endDate}.pdf`);
+};
+```
+
+### CSV Exports
+
+Export invoices or expenses to CSV (Billing.tsx:470-512):
+
+```typescript
+// Billing.tsx:470-512
+const exportCSV = (type: 'invoices' | 'expenses') => {
+  let csvRows: string[] = [];
+  
+  if (type === 'invoices') {
+    const headers = ['Athlete', 'Amount', 'Status', 'Date'];
+    csvRows = [headers.join(",")];
+    filteredInvoicesByDate.forEach(inv => {
+      const athlete = allAthletes.find(a => a.id === inv.athlete_id);
+      const row = [
+        `"${athlete ? `${athlete.first_name} ${athlete.last_name}` : 'N/A'}"`,
+        inv.amount,
+        inv.status,
+        inv.created_at
+      ];
+      csvRows.push(row.join(","));
+    });
+  }
+
+  const blob = new Blob([csvRows.join("\n")], { type: 'text/csv' });
+  const link = document.createElement("a");
+  link.setAttribute("href", URL.createObjectURL(blob));
+  link.setAttribute("download", filename);
+  link.click();
+};
+```
+
+## Date Filtering
+
+All financial data respects the global date filter (Billing.tsx:862-879):
+
+```typescript
+<div className="date-filter">
+  <Filter className="h-3.5 w-3.5" />
+  <Input 
+    type="date" 
+    value={startDate}
+    onChange={(e) => setStartDate(e.target.value)}
+  />
+  <span>to</span>
+  <Input 
+    type="date" 
+    value={endDate}
+    onChange={(e) => setEndDate(e.target.value)}
+  />
+</div>
+```
+
+<Tip>
+Default date range is the current month. Adjust to view quarterly or annual financials.
+</Tip>
+
+## Best Practices
+
+1. **Regular reconciliation**: Review invoices weekly to catch payment issues early
+2. **Expense categorization**: Consistently categorize expenses for accurate reporting
+3. **Automate renewals**: Set up automated reminders for expiring memberships
+4. **Monitor net margin**: Aim for 30-40% net margin for sustainable operations
+5. **Track collection rate**: 95%+ collection rate indicates healthy cash flow
+6. **Export monthly reports**: Keep PDF records for accounting and tax purposes
+7. **Review plan profitability**: Discontinue or adjust unprofitable plans quarterly

@@ -1,0 +1,338 @@
+---
+title: "Class Scheduling"
+description: "Manage your gym's weekly schedule, assign WODs to sessions, and track member attendance with BoxApp's scheduling system."
+---
+
+## Overview
+
+BoxApp's scheduling system combines class timetables with WOD programming to create a unified view of your gym's weekly operations.
+
+<CardGroup cols={2}>
+  <Card title="Weekly Calendar" icon="calendar">
+    Monday-Saturday view with all scheduled sessions
+  </Card>
+  <Card title="WOD Assignment" icon="link">
+    Link programmed WODs to specific class sessions
+  </Card>
+  <Card title="Session Types" icon="tag">
+    Color-coded sessions for easy identification
+  </Card>
+  <Card title="Member Feedback" icon="message-square">
+    Athletes can provide session feedback and RPE
+  </Card>
+</CardGroup>
+
+## Weekly Schedule View
+
+The schedule displays Monday through Saturday (Schedule.tsx:200-207):
+
+```typescript
+// Schedule.tsx:200-207
+const weekDays = [
+  t('common.mon', { defaultValue: 'MON' }),
+  t('common.tue', { defaultValue: 'TUE' }),
+  t('common.wed', { defaultValue: 'WED' }),
+  t('common.thu', { defaultValue: 'THU' }),
+  t('common.fri', { defaultValue: 'FRI' }),
+  t('common.sat', { defaultValue: 'SAT' })
+];
+```
+
+### Week Navigation
+
+Navigate between weeks using the date picker (Schedule.tsx:234-253):
+
+- **Previous/Next Week**: Arrow buttons
+- **Today Button**: Jump to current week
+- **Date Range Display**: Shows Monday-Saturday dates
+
+```typescript
+// Schedule.tsx:185-198
+const getDatesOfWeek = () => {
+  const start = new Date(viewDate);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Adjust to Monday
+  start.setDate(start.getDate() + diff);
+  start.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+};
+```
+
+## Programming Viewer
+
+The Programming Viewer shows all WODs assigned to each day across all tracks (Schedule.tsx:266-429).
+
+### Opening the Viewer
+
+Click "Program" button to open the assignment interface.
+
+### Day Selection
+
+Select which day to view/edit (Schedule.tsx:286-316):
+
+```typescript
+// Day selector within modal
+{getDatesOfWeek().map((date, i) => {
+  const isSelected = selectedViewerDate.toDateString() === date.toDateString();
+  const isToday = date.toDateString() === new Date().toDateString();
+  const hasWod = wods.some(w => w.date?.split('T')[0] === localDateStr);
+  
+  return (
+    <button
+      onClick={() => setSelectedViewerDate(date)}
+      className={isSelected ? "bg-primary" : "hover:bg-muted"}
+    >
+      <span>{weekDays[i]}</span>
+      <span>{date.getDate()}</span>
+      {hasWod && <div className="indicator" />}
+    </button>
+  );
+})}
+```
+
+<Note>
+Days with programmed WODs show a small indicator dot for quick identification.
+</Note>
+
+### Track Cards
+
+Each track displays its assigned WOD (Schedule.tsx:319-424):
+
+<Accordion title="CrossFit Track">
+- Shows assigned WOD title
+- "View Workout" link to see full details
+- Replace or unlink options
+- Marked with primary color badge
+</Accordion>
+
+<Accordion title="Novice Track">
+- Beginner-focused programming
+- Same assignment controls as CrossFit
+- Green color coding
+</Accordion>
+
+<Accordion title="Bodybuilding Track">
+- Hypertrophy workouts
+- Blue color coding
+</Accordion>
+
+<Accordion title="Engine Track">
+- Conditioning focus
+- Orange color coding
+</Accordion>
+
+## Assigning WODs to Sessions
+
+### Automatic Matching
+
+BoxApp automatically links WODs to sessions based on track and date (Schedule.tsx:209-223):
+
+```typescript
+// Schedule.tsx:209-223
+const getMatchedWod = (session: any, date: Date) => {
+  const localDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  
+  return wods.find(w => {
+    if (!w.date || !w.track) return false;
+    const wodDateStr = w.date.split('T')[0];
+    const sessionTypeName = (session.session_types?.name || '').toLowerCase();
+    const trackName = w.track.toLowerCase();
+
+    return wodDateStr === localDateStr && (
+      sessionTypeName.includes(trackName) ||
+      (trackName === 'crossfit' && sessionTypeName.includes('functional'))
+    );
+  });
+};
+```
+
+### Manual Assignment
+
+1. Click "Assign Existing" on a track card
+2. Select from recent WODs
+3. Confirm assignment
+
+<Warning>
+Assigning a WOD overwrites any existing assignment for that track on that date.
+</Warning>
+
+### Unlinking WODs
+
+```typescript
+// Schedule.tsx:170-183
+const handleUnlinkWod = async (wodId: string) => {
+  const { error } = await supabase
+    .from('wods')
+    .update({ date: undefined, track: undefined })
+    .eq('id', wodId);
+
+  if (!error) {
+    showNotification('success', 'PROGRAMMING UNLINKED');
+    fetchWods();
+  }
+};
+```
+
+## Session Details
+
+Click any session card to view details (Schedule.tsx:550-617):
+
+### Session Information
+- **Time**: Start time (e.g., "6:00 AM")
+- **Type**: Session category with color badge
+- **Title**: Custom session name
+- **Coach**: Assigned coach name
+
+### Linked Programming
+
+If a WOD matches the session (Schedule.tsx:574-593):
+
+```typescript
+{(() => {
+  const matchedWod = getMatchedWod(session, date);
+  if (matchedWod) {
+    return (
+      <div className="wod-preview"
+        onClick={(e) => {
+          e.stopPropagation();
+          setSelectedWod(matchedWod);
+        }}
+      >
+        <p>Programmed</p>
+        <p>{matchedWod.title}</p>
+      </div>
+    );
+  }
+  return null;
+})()}
+```
+
+<Tip>
+Click the WOD preview to view full workout details without closing the session view.
+</Tip>
+
+## Daily Programming Summary
+
+Each day card shows a programming summary (Schedule.tsx:507-540):
+
+```typescript
+const dayWods = wods.filter(w => w.date?.split('T')[0] === localDateStr);
+
+if (dayWods.length > 0) {
+  return (
+    <div className="daily-programming">
+      <p>Daily Programming</p>
+      {dayWods.slice(0, 3).map((wod, idx) => (
+        <div key={idx} onClick={() => setSelectedWod(wod)}>
+          <span>{wod.track}</span>
+          <span>{wod.title}</span>
+          <ChevronRight />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## WOD Viewer Modal
+
+The WOD viewer shows complete workout details (Schedule.tsx:645-763):
+
+### Header Section
+- Track badge
+- Date
+- WOD title
+
+### Workout Structure
+
+If using structured blocks:
+```typescript
+{selectedWod?.structure.map((block: any) => (
+  <div key={block.id}>
+    <p>{block.title}</p>
+    {block.items.map((item: any) => (
+      <div>
+        <p>{item.movementName}</p>
+        <p>{item.reps} {item.weight && `@ ${item.weight}`}</p>
+      </div>
+    ))}
+  </div>
+))}
+```
+
+### Stimulus & Scaling
+- Target stimulus description
+- General scaling options
+- Level-specific scaling (beginner/intermediate/advanced)
+
+### Modalities
+Displays all modalities present in the workout as badges.
+
+## Mobile Day Selector
+
+On mobile devices, a horizontal scrollable day picker appears (Schedule.tsx:435-473):
+
+```typescript
+// Schedule.tsx:436-473
+<div className="mobile-day-selector">
+  {getDatesOfWeek().map((date, i) => {
+    const isSelected = selectedDayIndex === i;
+    const isToday = date.toDateString() === new Date().toDateString();
+    const hasSessions = sessions.some(s => 
+      new Date(s.start_time).toDateString() === date.toDateString()
+    );
+    
+    return (
+      <button
+        data-day-index={i}
+        onClick={() => setSelectedDayIndex(i)}
+        className={isSelected ? "selected" : ""}
+      >
+        <span>{weekDays[i]}</span>
+        <span>{date.getDate()}</span>
+        {hasSessions && <div className="indicator" />}
+      </button>
+    );
+  })}
+</div>
+```
+
+<Note>
+The selected day scrolls into view automatically for better mobile UX.
+</Note>
+
+## Member Feedback
+
+Athletes can submit session feedback (Schedule.tsx:602-615):
+
+```typescript
+<Button
+  onClick={(e) => {
+    e.stopPropagation();
+    setIsFeedbackOpen(session.id);
+  }}
+>
+  <MessageSquare className="h-2.5 w-2.5" />
+  Feedback
+</Button>
+```
+
+Feedback typically includes:
+- Effort level (RPE)
+- Fatigue rating
+- Satisfaction emoji
+- Text notes
+
+## Best Practices
+
+1. **Program ahead**: Assign WODs at least 24 hours before class
+2. **Match tracks carefully**: Ensure WOD track matches session type
+3. **Review daily summaries**: Check each day has complete programming
+4. **Use color coding**: Train members to recognize session types by color
+5. **Monitor feedback**: Use athlete feedback to adjust programming intensity
+6. **Coach assignments**: Always assign a coach to ensure accountability

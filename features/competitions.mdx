@@ -1,0 +1,350 @@
+---
+title: "Competition Management"
+description: "Organize and run CrossFit competitions with BoxApp's comprehensive competition management system."
+---
+
+## Overview
+
+BoxApp's competition module enables you to create, manage, and score CrossFit competitions from small in-house throwdowns to multi-day events.
+
+<CardGroup cols={2}>
+  <Card title="Event Creation" icon="trophy">
+    Set up competitions with custom dates and descriptions
+  </Card>
+  <Card title="Athlete Management" icon="users">
+    Register participants and manage divisions
+  </Card>
+  <Card title="Event Scoring" icon="award">
+    Track scores across multiple events with automated leaderboards
+  </Card>
+  <Card title="Judge Assignment" icon="shield-check">
+    Assign judges to events and manage scoring responsibilities
+  </Card>
+</CardGroup>
+
+## Creating a Competition
+
+Start a new competition from the Competitions page (Competitions.tsx:145-211):
+
+### Step 1: Open Dialog
+
+Click "Create Competition" to open the creation form.
+
+### Step 2: Competition Details
+
+```typescript
+// Competitions.tsx:115-134
+const handleCreateCompetition = async (e: React.FormEvent) => {
+  const { error } = await supabase
+    .from('competitions')
+    .insert([{
+      ...newComp,
+      box_id: currentBox?.id,
+      status: 'upcoming'
+    }]);
+};
+```
+
+Required fields:
+- **Name**: Competition title (e.g., "Spring Throwdown 2024")
+- **Description**: Brief overview of the event
+- **Start Date**: Competition start date
+- **End Date**: Competition end date
+
+<Note>
+New competitions are created with "upcoming" status. Change to "active" when the event begins.
+</Note>
+
+## Competition Statuses
+
+<Accordion title="Upcoming">
+Competition is scheduled but not yet started:
+- Registration open
+- Events can be created/modified
+- Scores not yet tracked
+</Accordion>
+
+<Accordion title="Active">
+Competition is currently running:
+- Athletes can view events
+- Judges can submit scores
+- Live leaderboard updates
+</Accordion>
+
+<Accordion title="Finished">
+Competition has concluded:
+- Final standings locked
+- Results archived
+- No further score changes
+</Accordion>
+
+## Competition Card Details
+
+Each competition displays key metrics (Competitions.tsx:237-269):
+
+```typescript
+// Competitions.tsx:237-269
+<Card>
+  <CardHeader>
+    <Badge>{comp.status}</Badge>
+    <CardTitle>{comp.name}</CardTitle>
+    <CardDescription>{comp.description}</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="date-range">
+      <Calendar className="h-4 w-4" />
+      {new Date(comp.start_date).toLocaleDateString()} - 
+      {new Date(comp.end_date).toLocaleDateString()}
+    </div>
+    <div className="stats-grid">
+      <div className="stat">
+        <p>Athletes</p>
+        <p>{comp.participants?.[0]?.count || 0}</p>
+      </div>
+      <div className="stat">
+        <p>Events</p>
+        <p>{comp.events?.[0]?.count || 0}</p>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+```
+
+## Competition Management Tabs
+
+Click any competition to open the management interface with 4 main sections:
+
+### Athletes Tab
+
+Manage participant registration:
+- Add athletes to competition
+- Assign divisions (RX, Scaled, Masters, etc.)
+- View participant list
+- Remove participants
+
+### Events Tab
+
+Create and manage competition events:
+- Add new events (WODs)
+- Set time caps and scoring formats
+- Define movement standards
+- Order events (Event 1, 2, 3, etc.)
+
+### Judges Tab
+
+Assign and manage event judges (Competitions.tsx:336-359):
+
+```typescript
+// Competitions.tsx:336-359
+<Card className="judge-management">
+  <CardHeader>
+    <CardTitle>
+      <ShieldCheck className="h-6 w-6" />
+      Judge Management
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p>Assign certified judges to validate athlete scores</p>
+    <Button onClick={() => handleManageCompetition(activeComp, 'judges')}>
+      <UserPlus className="h-5 w-5" />
+      Manage Judges
+    </Button>
+  </CardContent>
+</Card>
+```
+
+### Scoring Tab
+
+Configure scoring rules (Competitions.tsx:362-387):
+
+```typescript
+<Card className="scoring-system">
+  <CardHeader>
+    <CardTitle>
+      <Medal className="h-6 w-6" />
+      Scoring System
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    <p>Configure points, tie-breaks, and leaderboard rules</p>
+    <Button onClick={() => handleManageCompetition(activeComp, 'scoring')}>
+      <Settings className="h-5 w-5" />
+      Configure Rules
+    </Button>
+  </CardContent>
+</Card>
+```
+
+## Quick Actions
+
+Each competition card provides quick action buttons (Competitions.tsx:271-288):
+
+<CardGroup cols={2}>
+  <Card title="Athletes" icon="users">
+    Jump directly to participant management
+  </Card>
+  <Card title="Events" icon="list-checks">
+    Access event creation and editing
+  </Card>
+  <Card title="Judges" icon="shield-check">
+    Manage judge assignments
+  </Card>
+  <Card title="Scoring" icon="award">
+    Configure scoring system
+  </Card>
+</CardGroup>
+
+## Competition Manager Component
+
+The unified management interface is handled by `CompetitionManager` (Competitions.tsx:326-332):
+
+```typescript
+// Competitions.tsx:326-332
+<Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
+  <CompetitionManager
+    competition={selectedComp}
+    initialTab={managementTab}
+    onClose={() => setIsManageOpen(false)}
+  />
+</Dialog>
+```
+
+<Tip>
+The `initialTab` prop allows deep-linking to specific management sections (e.g., jumping straight to judges).
+</Tip>
+
+## Viewing Active vs. Past Competitions
+
+Competitions are organized into tabs (Competitions.tsx:214-218):
+
+```typescript
+// Competitions.tsx:214-218
+<Tabs defaultValue="active">
+  <TabsList>
+    <TabsTrigger value="active">Active</TabsTrigger>
+    <TabsTrigger value="finished">Past</TabsTrigger>
+  </TabsList>
+</Tabs>
+```
+
+### Active Tab
+Shows:
+- Upcoming competitions
+- Currently running competitions
+- Competitions with "active", "upcoming", or "scheduled" status
+
+### Past Tab
+Shows:
+- Finished competitions
+- Completed events
+- Competitions with "finished" or "completed" status
+
+## Filtering Logic
+
+```typescript
+// Competitions.tsx:68-79
+const filteredCompetitionsMap = useMemo(() => {
+  const map: Record<string, Competition[]> = { active: [], finished: [] };
+  for (const c of competitions) {
+    const s = c.status?.toLowerCase() || 'upcoming';
+    if (s === 'active' || s === 'upcoming' || s === 'scheduled') {
+      map.active.push(c);
+    } else if (s === 'finished' || s === 'completed') {
+      map.finished.push(c);
+    }
+  }
+  return map;
+}, [competitions]);
+```
+
+## Pagination
+
+Competitions are paginated for better performance (Competitions.tsx:84-91):
+
+```typescript
+// Competitions.tsx:84-91
+const itemsPerPage = 6;
+
+const getPaginatedCompetitions = (status: string) => {
+  const filtered = filteredCompetitions(status);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  return filtered.slice(startIndex, startIndex + itemsPerPage);
+};
+```
+
+## Empty States
+
+If no competitions exist (Competitions.tsx:225-232):
+
+```typescript
+<Card className="empty-state">
+  <CardContent>
+    <Trophy className="h-20 w-20" />
+    <h3>No active competitions</h3>
+    <p>Start your first competition to engage your community</p>
+    <Button onClick={() => setIsCreateOpen(true)}>
+      Create First Competition
+    </Button>
+  </CardContent>
+</Card>
+```
+
+## Best Practices
+
+1. **Plan ahead**: Create competitions 2-4 weeks before start date
+2. **Clear event descriptions**: Include movement standards and scoring format
+3. **Test scoring**: Verify point calculations before competition starts
+4. **Judge training**: Brief judges on standards and score submission process
+5. **Live updates**: Keep leaderboard updated in real-time during events
+6. **Post-event review**: Archive results and gather participant feedback
+
+## Event Workflow
+
+<Steps>
+  <Step title="Create Competition">
+    Set dates, description, and initial status
+  </Step>
+  <Step title="Add Events">
+    Create WODs with clear standards and scoring
+  </Step>
+  <Step title="Register Athletes">
+    Add participants and assign divisions
+  </Step>
+  <Step title="Assign Judges">
+    Designate certified judges to each event
+  </Step>
+  <Step title="Configure Scoring">
+    Set point values and tie-break rules
+  </Step>
+  <Step title="Run Competition">
+    Track scores and update leaderboard live
+  </Step>
+  <Step title="Finalize Results">
+    Lock final standings and archive competition
+  </Step>
+</Steps>
+
+## Advanced Features
+
+<Warning>
+Some advanced features may require specific permissions or box configuration.
+</Warning>
+
+### Division Management
+Segment athletes by:
+- Skill level (RX, Scaled, Novice)
+- Age (Teens, Adults, Masters)
+- Gender (Male, Female, Mixed)
+
+### Automated Leaderboards
+Real-time rankings based on:
+- Total points across all events
+- Time-based sorting (For Time events)
+- Rep-based sorting (AMRAP events)
+- Tie-break rules
+
+### Judge Validation
+Score submission requires:
+- Judge confirmation
+- Video proof (optional)
+- Movement standard verification

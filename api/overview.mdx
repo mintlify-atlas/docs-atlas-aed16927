@@ -1,0 +1,281 @@
+---
+title: API Overview
+description: Learn how to interact with the BoxApp API for managing your CrossFit gym
+---
+
+## Introduction
+
+The BoxApp API is built on [Supabase](https://supabase.com), providing a powerful PostgreSQL-based backend with real-time capabilities, authentication, and row-level security. The API enables you to manage all aspects of your CrossFit gym, including members, classes, workouts, competitions, and more.
+
+## Base URL
+
+The API base URL is your Supabase project URL:
+
+```
+https://your-project.supabase.co
+```
+
+## Authentication
+
+All API requests require authentication using Supabase Auth. You must include your authentication token in the request headers.
+
+See the [Authentication](/api/authentication) page for detailed information on signing in, signing up, and managing user sessions.
+
+## Client Initialization
+
+To interact with the BoxApp API, you initialize the Supabase client with your project credentials:
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+import { Database } from '@/types/supabase';
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+```
+
+<Note>
+  The `Database` type provides full TypeScript type safety for all tables, columns, and relationships in your database.
+</Note>
+
+## Environment Variables
+
+You need to configure the following environment variables:
+
+<ParamField path="VITE_SUPABASE_URL" type="string" required>
+  Your Supabase project URL (e.g., `https://xxxxx.supabase.co`)
+</ParamField>
+
+<ParamField path="VITE_SUPABASE_ANON_KEY" type="string" required>
+  Your Supabase anonymous/public API key. This key is safe to use in client-side code and respects row-level security policies.
+</ParamField>
+
+## Core Resources
+
+The BoxApp API provides access to the following core resources:
+
+### Profiles
+
+User profiles with role-based access control (admin, coach, athlete).
+
+```typescript
+type Profile = Database['public']['Tables']['profiles']['Row'];
+```
+
+### Boxes
+
+Gym/box configurations including branding, themes, and subscription status.
+
+```typescript
+type Box = Database['public']['Tables']['boxes']['Row'];
+```
+
+### Classes & Sessions
+
+Class schedules, sessions, and bookings for gym members.
+
+```typescript
+type Class = Database['public']['Tables']['classes']['Row'];
+type Session = Database['public']['Tables']['sessions']['Row'];
+type Booking = Database['public']['Tables']['bookings']['Row'];
+```
+
+### Workouts (WODs)
+
+Daily workouts with structured blocks and programming.
+
+```typescript
+type WOD = Database['public']['Tables']['wods']['Row'];
+```
+
+### Competitions
+
+Comprehensive competition management including events, divisions, participants, scoring, and leaderboards.
+
+```typescript
+type Competition = Database['public']['Tables']['competitions']['Row'];
+type CompetitionEvent = Database['public']['Tables']['competition_events']['Row'];
+type CompetitionParticipant = Database['public']['Tables']['competition_participants']['Row'];
+```
+
+### Memberships & Billing
+
+Membership plans, invoices, and payment tracking.
+
+```typescript
+type Plan = Database['public']['Tables']['plans']['Row'];
+type Membership = Database['public']['Tables']['memberships']['Row'];
+type Invoice = Database['public']['Tables']['invoices']['Row'];
+```
+
+### Inventory
+
+Equipment and supplies inventory management.
+
+```typescript
+type Item = Database['public']['Tables']['items']['Row'];
+```
+
+## Making Requests
+
+The Supabase client provides a fluent API for querying and mutating data:
+
+### Fetching Data
+
+```typescript
+// Get all profiles in the current box
+const { data, error } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('box_id', boxId);
+```
+
+### Inserting Data
+
+```typescript
+// Create a new class
+const { data, error } = await supabase
+  .from('classes')
+  .insert({
+    name: 'CrossFit Fundamentals',
+    capacity: 12,
+    duration_minutes: 60,
+    start_time: '2026-03-05T10:00:00',
+    end_time: '2026-03-05T11:00:00'
+  });
+```
+
+### Updating Data
+
+```typescript
+// Update a user's profile
+const { data, error } = await supabase
+  .from('profiles')
+  .update({ first_name: 'John', last_name: 'Doe' })
+  .eq('id', userId);
+```
+
+### Deleting Data
+
+```typescript
+// Cancel a class
+const { data, error } = await supabase
+  .from('classes')
+  .update({ is_canceled: true })
+  .eq('id', classId);
+```
+
+## Response Format
+
+All API operations return a response object with the following structure:
+
+<ResponseField name="data" type="T | T[] | null">
+  The returned data from the query. Will be `null` if an error occurred.
+</ResponseField>
+
+<ResponseField name="error" type="PostgrestError | null">
+  An error object if the request failed, otherwise `null`.
+  
+  <Expandable title="Error Object Properties">
+    <ResponseField name="message" type="string">
+      Human-readable error message
+    </ResponseField>
+    <ResponseField name="details" type="string">
+      Additional error details
+    </ResponseField>
+    <ResponseField name="hint" type="string">
+      Suggestion for fixing the error
+    </ResponseField>
+    <ResponseField name="code" type="string">
+      PostgreSQL error code
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error Handling
+
+Always check for errors in your API responses:
+
+```typescript
+const { data, error } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', userId)
+  .single();
+
+if (error) {
+  console.error('Error fetching profile:', error.message);
+  return;
+}
+
+// Use data safely
+console.log('Profile:', data);
+```
+
+<Warning>
+  The `.single()` modifier expects exactly one row. If zero or multiple rows are returned, it will return an error.
+</Warning>
+
+## Real-time Subscriptions
+
+Subscribe to real-time changes in your database:
+
+```typescript
+const subscription = supabase
+  .channel('custom-channel')
+  .on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'classes'
+    },
+    (payload) => {
+      console.log('Change received:', payload);
+    }
+  )
+  .subscribe();
+
+// Cleanup
+subscription.unsubscribe();
+```
+
+## Multi-tenancy
+
+BoxApp implements multi-tenancy through the `box_id` field. All queries automatically filter data based on the authenticated user's box association through row-level security policies.
+
+<Note>
+  You don't need to manually filter by `box_id` in most cases - RLS policies handle this automatically based on the authenticated user's profile.
+</Note>
+
+## Rate Limits
+
+Supabase enforces rate limits based on your subscription plan. Monitor your usage through the Supabase dashboard.
+
+## TypeScript Support
+
+The BoxApp API provides comprehensive TypeScript types generated from your database schema:
+
+```typescript
+import { Database } from '@/types/supabase';
+
+// Table row types
+type Profile = Database['public']['Tables']['profiles']['Row'];
+
+// Insert types (fields with defaults are optional)
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
+
+// Update types (all fields optional)
+type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
+
+// Enum types
+type WodType = Database['public']['Enums']['wod_type'];
+type ScoreStatus = Database['public']['Enums']['score_status'];
+```
+
+## Next Steps
+
+- Read the [Authentication](/api/authentication) guide to learn about user management
+- Explore the [Supabase Documentation](https://supabase.com/docs) for advanced features
+- Review row-level security policies in your Supabase dashboard

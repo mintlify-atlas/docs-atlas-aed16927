@@ -1,0 +1,621 @@
+---
+title: Running Competitions
+description: Create and manage CrossFit competitions from registration to scoring
+---
+
+# Running Competitions
+
+BoxApp's competition management system helps you organize throwdowns, in-house competitions, and community events. Handle athlete registration, event creation, judging, and live scoring all in one platform.
+
+## Overview
+
+The Competitions module provides:
+- Competition creation and scheduling
+- Athlete registration and division management
+- Event/workout builder integration
+- Judge assignment and certification tracking
+- Scoring system with tiebreakers
+- Leaderboard generation
+- Results export
+
+## Creating a Competition
+
+<Steps>
+  <Step title="Open Competition Creator">
+    Click the "CREATE COMPETITION" button on the Competitions page. This opens the competition setup form with a trophy-themed interface.
+  </Step>
+
+  <Step title="Enter Competition Details">
+    ### Basic Information
+
+    **Competition Name** (Required)  
+    Give your competition a memorable name:
+    - "Spring Showdown 2026"
+    - "Holiday Throwdown"
+    - "Box Championships"
+
+    **Description** (Optional)  
+    Brief overview of the competition:
+    - Format (individual/team)
+    - Target audience (RX/Scaled/Masters)
+    - Special notes or theme
+
+    <Tip>
+      Use clear, descriptive names that indicate the competition level and time period. Athletes often search by date or difficulty.
+    </Tip>
+  </Step>
+
+  <Step title="Set Competition Dates">
+    **Start Date** (Required)  
+    First day of competition
+
+    **End Date** (Required)  
+    Last day of competition (can be same as start for single-day events)
+
+    The system uses these dates to:
+    - Determine competition status
+    - Calculate registration deadlines
+    - Order competitions chronologically
+  </Step>
+
+  <Step title="Launch Competition">
+    Click "LAUNCH COMPETITION" to create it.
+
+    The competition is created with:
+    - Status: `upcoming`
+    - Box ID: Your current box
+    - Empty participant and event lists
+    - Ready for configuration
+
+    <Note>
+      Competitions start in "upcoming" status. You'll manually change this to "active" when the competition begins and "finished" when complete.
+    </Note>
+  </Step>
+</Steps>
+
+## Competition Status Workflow
+
+### Status Types
+
+| Status | Meaning | Displayed In |
+|--------|---------|-------------|
+| **Upcoming** | Not yet started | Active tab |
+| **Scheduled** | Date set, not started | Active tab |
+| **Active** | Currently running | Active tab |
+| **Finished** | Competition complete | Past tab |
+| **Completed** | Final results posted | Past tab |
+
+### Typical Competition Lifecycle
+
+```
+Create → upcoming
+  ↓
+Athletes register
+  ↓
+Start day arrives → active
+  ↓
+Events run, scores recorded
+  ↓
+Last event finishes → finished
+  ↓
+Results verified → completed
+```
+
+<Tip>
+  Keep status updated so athletes know which competitions are open for registration vs which are live vs which have final results.
+</Tip>
+
+## Competition Cards
+
+### Information Display
+
+Each competition card shows:
+
+**Header**:
+- Status badge (colored by status type)
+- Competition name (large, bold, italic)
+- Description (2-line preview)
+
+**Date Range**:
+- Calendar icon
+- Start to end date formatted
+
+**Stats** (two-column grid):
+- **Athletes**: Registered participant count
+- **Events**: Number of workouts/tests
+
+**Footer Actions**:
+- Athletes management
+- Events management  
+- Judges management
+- Scoring management
+- "DETAIL" button (opens full manager)
+
+<Note>
+  The cards are organized into Active and Past tabs. Active shows upcoming/active/scheduled competitions, Past shows finished/completed.
+</Note>
+
+## Managing Participants
+
+Click "Athletes" or "DETAIL" → Participants tab
+
+### Adding Athletes
+
+<Steps>
+  <Step title="Open Participant Manager">
+    From the competition detail view, navigate to the Participants tab.
+  </Step>
+
+  <Step title="Add Individual Athletes">
+    Click "ADD ATHLETE" and:
+    - Search your member list
+    - Select division (RX/Scaled/Masters, etc.)
+    - Confirm addition
+
+    Athletes are added with:
+    - Registration timestamp
+    - Initial score of 0
+    - Assigned division
+    - Linked to competition ID
+  </Step>
+
+  <Step title="Bulk Registration (Optional)">
+    Use bulk tools to:
+    - Import from CSV
+    - Select multiple from member list
+    - Copy from previous competition
+  </Step>
+</Steps>
+
+### Division Management
+
+Create divisions to segment your leaderboard:
+
+**Common Division Examples**:
+- RX Men / RX Women
+- Scaled Men / Scaled Women  
+- Masters 40+ / Masters 50+
+- Teen / Youth
+- Team (2-person, 4-person, etc.)
+
+<Warning>
+  Divisions must be created before adding athletes. You cannot change an athlete's division after registration without removing and re-adding them.
+</Warning>
+
+## Creating Events
+
+Click "Events" or "DETAIL" → Events tab
+
+### Event Builder
+
+Events are the workouts/tests athletes will complete:
+
+<Steps>
+  <Step title="Add New Event">
+    Click "ADD EVENT" to open the event form.
+
+    **Event Name**: "Event 1", "Snatch Ladder", "Finale", etc.  
+    **Description**: Workout details and standards
+  </Step>
+
+  <Step title="Design Workout">
+    You have two options:
+
+    **Option 1: Use WOD Designer**
+    - Access the full block-based designer
+    - Build structured workout with movements
+    - Set time caps and formats
+    - Add scaling options
+
+    **Option 2: Free Text**
+    - Enter workout as plain text
+    - Copy/paste from external sources
+    - Simpler for standard formats
+  </Step>
+
+  <Step title="Set Scoring Type">
+    Choose how this event is scored:
+
+    - **Time**: Finish time (For Time format)
+    - **Reps**: Total reps completed (AMRAP)
+    - **Load**: Max weight lifted (1RM tests)
+    - **Points**: Custom point system
+
+    <Tip>
+      Scoring type determines how results are sorted on the leaderboard. "Time" sorts ascending (fastest first), "Reps" and "Load" sort descending (highest first).
+    </Tip>
+  </Step>
+
+  <Step title="Configure Tiebreakers">
+    Set tiebreaker rules for when scores are identical:
+
+    Examples:
+    - "Time to complete 21 thrusters"
+    - "Max unbroken reps in first set"
+    - "Lightest bodyweight" (for relative strength events)
+  </Step>
+
+  <Step title="Save Event">
+    Event is added to competition with:
+    - Sequential ordering
+    - Linked to competition ID
+    - Ready for score submission
+  </Step>
+</Steps>
+
+### Event Standards
+
+For each event, document:
+- Movement standards (video links helpful)
+- Equipment requirements
+- Safety considerations
+- Judging criteria
+- Penalties for no-reps
+
+<Note>
+  Clear standards reduce judging disputes and ensure fair competition. Include video demonstrations when possible.
+</Note>
+
+## Judge Management
+
+Click "Judges" or manage judges section
+
+### Assigning Judges
+
+<Steps>
+  <Step title="Access Judge Panel">
+    Open the Judges tab in competition management.
+  </Step>
+
+  <Step title="Add Judges">
+    Select from:
+    - Your coaching staff
+    - Certified CrossFit judges
+    - Volunteer athletes
+
+    Each judge needs:
+    - Name and contact
+    - Certification level (optional)
+    - Assigned lanes or heats
+  </Step>
+
+  <Step title="Assign to Heats">
+    Match judges to:
+    - Specific athletes
+    - Lanes or stations
+    - Heat numbers
+
+    Ensures even coverage and prevents conflicts of interest.
+  </Step>
+</Steps>
+
+### Judge Cards
+
+The interface displays judges with:
+- Name
+- Certification badge (if applicable)
+- Assigned heat/lane
+- Contact button
+
+<Warning>
+  Never assign a judge to score their own heat or family members. This maintains competition integrity.
+</Warning>
+
+## Scoring System
+
+Click "Scoring" or configure scoring rules
+
+### Scoring Methods
+
+#### Points-Based Scoring
+
+**How it works**:
+- Each event awards points based on placement
+- 1st place = 100 pts, 2nd = 95 pts, 3rd = 90 pts, etc.
+- Overall winner = highest cumulative points
+
+**Best for**: Multi-event competitions, CrossFit Games style
+
+#### Placing-Based Scoring
+
+**How it works**:
+- Each event awards place (1st, 2nd, 3rd)
+- Overall winner = lowest cumulative placement
+- Example: 3 first places + 1 second = score of 5
+
+**Best for**: Olympic-style competitions, local throwdowns
+
+#### Time-Based Scoring  
+
+**How it works**:
+- Total time across all events
+- Fastest cumulative time wins
+
+**Best for**: Sprint-style competitions, time trials
+
+### Configuring Scoring Rules
+
+<Steps>
+  <Step title="Open Scoring Settings">
+    Navigate to the Scoring tab in competition management.
+  </Step>
+
+  <Step title="Select Scoring Method">
+    Choose your primary scoring method from the dropdown:
+    - Points (CrossFit Games format)
+    - Placing (Simple ranking)
+    - Time (Cumulative)
+    - Custom (Define your own)
+  </Step>
+
+  <Step title="Set Point Breakdown (if points-based)">
+    Define points per placement:
+    ```
+    1st: 100 points
+    2nd: 95 points  
+    3rd: 90 points
+    4th: 85 points
+    ...
+    ```
+
+    Or use preset scales like:
+    - Linear (100, 95, 90, 85...)
+    - Tiered (100, 90, 80, 70...)
+    - Winner-heavy (100, 80, 70, 65...)
+  </Step>
+
+  <Step title="Configure Tiebreaker Priority">
+    Set what breaks ties at the overall level:
+    1. Event-specific tiebreakers
+    2. Head-to-head results
+    3. Last event placement
+    4. Total reps (if applicable)
+  </Step>
+</Steps>
+
+<Tip>
+  For first-time competitions, use the standard CrossFit Games point system (100, 95, 90, 85...). It's familiar to athletes and handles ties well.
+</Tip>
+
+## Submitting Scores
+
+### Score Entry Workflow
+
+<Steps>
+  <Step title="Navigate to Leaderboard">
+    From competition detail, open the Leaderboard or Scores tab.
+  </Step>
+
+  <Step title="Select Event">
+    Choose which event you're entering scores for:
+    - Event 1, Event 2, etc.
+    - Shows list of registered athletes
+  </Step>
+
+  <Step title="Enter Athlete Score">
+    For each athlete:
+
+    **For Time events**:
+    - Enter finish time (MM:SS format)
+    - Record tiebreaker time if applicable
+    - Mark DNF if did not finish
+
+    **For AMRAP events**:
+    - Enter total reps completed
+    - Record tiebreaker if applicable
+
+    **For Load events**:
+    - Enter max weight achieved
+    - Note attempts if relevant
+  </Step>
+
+  <Step title="Validate Score">
+    Judges can:
+    - Approve score (green check)
+    - Contest score (red flag)
+    - Add notes or video review
+
+    <Note>
+      Requiring judge validation adds an approval step before scores go live on the leaderboard.
+    </Note>
+  </Step>
+
+  <Step title="Publish Results">
+    Once all scores for an event are entered and validated:
+    - Click "PUBLISH EVENT RESULTS"
+    - Scores become visible to athletes
+    - Leaderboard updates automatically
+  </Step>
+</Steps>
+
+### Score Display
+
+Leaderboard shows:
+- Athlete name and division
+- Per-event scores
+- Overall placement
+- Total points/time
+- Gap to leader ("Behind by 15 pts")
+
+## Live Leaderboard
+
+### Real-Time Updates
+
+As scores are submitted:
+- Leaderboard recalculates
+- Athlete rankings shift
+- Points/placements update
+- Graphs show progress
+
+Athletes and spectators can:
+- View live standings
+- Filter by division
+- See event-by-event breakdown
+- Track their position
+
+### Leaderboard Features
+
+- **Division Filters**: Toggle between divisions
+- **Event Tabs**: See standings after each event
+- **Overall Tab**: Cumulative scores
+- **Podium View**: Top 3 highlighted
+- **Mobile Optimized**: Responsive on all devices
+
+<Tip>
+  Display the leaderboard on a TV or projector at your box during the competition. Athletes love seeing live updates!
+</Tip>
+
+## Advanced Features
+
+### Team Competitions
+
+For team events:
+1. Create team entries (not individual athletes)
+2. Register team members under team name
+3. Enter combined scores
+4. Calculate team totals
+
+### Multi-Division Competitions
+
+Run parallel divisions:
+- Each division has own leaderboard
+- Share same events
+- Different scaling options
+- Separate awards
+
+### Heat Management
+
+Organize athletes into heats:
+- Assign based on seeding
+- Balance judge coverage
+- Optimize flow and timing
+- Track heat completion status
+
+## Competition Day Workflow
+
+### Before Competition
+
+<Steps>
+  <Step title="Finalize Registration">
+    - Close registration 24-48 hours before
+    - Verify all athletes paid
+    - Confirm division assignments
+    - Send final athlete briefing
+  </Step>
+
+  <Step title="Prepare Events">
+    - Publish event details
+    - Set up equipment
+    - Brief judges on standards
+    - Test scoring system
+  </Step>
+
+  <Step title="Athlete Check-In">
+    - Verify registration
+    - Collect waivers
+    - Assign bib numbers
+    - Conduct athlete briefing
+  </Step>
+</Steps>
+
+### During Competition
+
+1. **Run Events**: Execute according to schedule
+2. **Enter Scores**: Submit after each heat
+3. **Update Leaderboard**: Publish event results
+4. **Monitor Standings**: Check for ties or disputes
+5. **Communicate**: Announce next heats and rankings
+
+### After Competition
+
+1. **Verify Final Scores**: Double-check for errors
+2. **Apply Tiebreakers**: Resolve any ties
+3. **Set Status to Finished**: Lock leaderboard
+4. **Award Ceremony**: Announce winners
+5. **Export Results**: Save for records
+
+## Best Practices
+
+### Planning
+
+- **Start Early**: Create competition 4-6 weeks in advance
+- **Clear Communication**: Detailed athlete packet with all info
+- **Test Systems**: Do a dry-run with test data
+- **Backup Plan**: Have paper score sheets ready
+
+### Event Design
+
+- **Variety**: Mix time, load, and rep-based events
+- **Scalability**: Provide clear scaling options
+- **Safety**: No excessively dangerous movements
+- **Feasibility**: Ensure events are completable in time cap
+
+<Warning>
+  Always have a medical professional on-site during competitions. Athletes push harder in competitive environments.
+</Warning>
+
+### Judging
+
+- **Ratios**: 1 judge per 4-5 athletes minimum
+- **Training**: Brief judges before each event
+- **Consistency**: Use same standards for all heats
+- **Video**: Record workouts when possible for review
+
+## Troubleshooting
+
+<Accordion title="Athlete registered in wrong division">
+  To fix:
+  1. Remove athlete from competition
+  2. Re-add with correct division
+  3. Manually re-enter any scores they had
+  
+  Division changes after scores are entered require data migration.
+</Accordion>
+
+<Accordion title="Score entry error">
+  If a score was entered incorrectly:
+  1. Navigate to that event's scores
+  2. Find the athlete
+  3. Click edit icon
+  4. Update score
+  5. Republish event results
+  
+  The leaderboard recalculates automatically.
+</Accordion>
+
+<Accordion title="Leaderboard not updating">
+  Check:
+  - Event results are published (not just saved)
+  - Scoring method is configured
+  - No validation errors on scores
+  - Browser cache cleared
+  
+  Republishing event results usually fixes this.
+</Accordion>
+
+<Accordion title="Tiebreaker not working">
+  Ensure:
+  - Tiebreaker field is filled for all tied athletes
+  - Tiebreaker format matches (all times or all reps)
+  - Tiebreaker rules are configured in settings
+</Accordion>
+
+## Export and Reporting
+
+### Available Exports
+
+- **Final Results**: PDF or CSV with all placements
+- **Division Leaderboards**: Separate files per division
+- **Event Breakdowns**: Per-event results and stats
+- **Athlete Performance**: Individual athlete report cards
+
+### Sharing Results
+
+- Share leaderboard URL publicly
+- Post to social media with auto-generated graphics
+- Email results to all participants
+- Print certificates for podium finishers
+
+<Tip>
+  Save your competition configuration as a template. You can duplicate it for next year's event with all the same settings and event structures.
+</Tip>

@@ -1,0 +1,155 @@
+---
+title: Setting Up Your Box
+description: Complete guide to registering and configuring your CrossFit box on BoxApp
+---
+
+# Setting Up Your Box
+
+Get your CrossFit gym up and running on BoxApp in minutes. This guide walks you through the complete box registration process.
+
+## Overview
+
+BoxApp uses a two-step registration process that creates your box profile and administrator account simultaneously. Your box will receive a unique URL and be ready to manage members, schedule classes, and track performance.
+
+<Steps>
+  <Step title="Enter Box Information">
+    Start by providing your box's basic information:
+
+    ### Box Name
+    Enter your gym's official name (e.g., "CrossFit Arena"). This will be displayed throughout the platform and to your members.
+
+    ### Platform URL (Slug)
+    Choose a unique URL identifier for your box. This creates your custom subdomain:
+    
+    - Format: `your-box-name.boxora.website`
+    - Only lowercase letters, numbers, and hyphens allowed
+    - Must be 3-50 characters long
+    - The system validates availability in real-time
+
+    <Note>
+      The URL slug is automatically generated from your box name but can be customized. Once set, it determines how members access your platform.
+    </Note>
+
+    ### Country
+    Select your box's country from the dropdown. Available countries include:
+    - Venezuela
+    - Colombia
+    - España
+    - Estados Unidos
+    - México
+    - Argentina
+    - Chile
+    - Perú
+    - Ecuador
+    - Panamá
+
+    <Warning>
+      Make sure your URL slug is unique and memorable. While you see real-time availability checking with a green checkmark when available, you cannot proceed if the slug is already taken.
+    </Warning>
+  </Step>
+
+  <Step title="Create Administrator Account">
+    Set up your admin credentials to manage the box:
+
+    ### Administrator Email
+    Provide a valid email address that will serve as the primary admin account. This email is used for:
+    - Platform login
+    - System notifications
+    - Password recovery
+
+    ### Password
+    Create a secure password:
+    - Minimum 8 characters required
+    - Used for secure access to all admin features
+    - Can be changed later in settings
+
+    <Tip>
+      Use a strong password that combines letters, numbers, and special characters to keep your box data secure.
+    </Tip>
+  </Step>
+
+  <Step title="Complete Registration">
+    After clicking "Crear mi Box" (Create my Box), the system:
+
+    1. **Creates your box profile** with subscription status set to 'trial'
+    2. **Registers your admin account** in the authentication system
+    3. **Links your account to the box** with admin role and full permissions
+    4. **Prepares your environment** with default settings
+
+    You'll see a success screen confirming your box is ready, showing:
+    - Your box name
+    - Your platform URL
+    - Auto-redirect countdown
+
+    <Note>
+      The platform automatically redirects you to your new box dashboard after 3 seconds. If you're on localhost, it uses a query parameter format: `?box=your-slug`
+    </Note>
+  </Step>
+
+  <Step title="Access Your Dashboard">
+    Once redirected, you'll land on your box's management dashboard where you can:
+
+    - Add members and staff
+    - Create session schedules
+    - Design WODs and programming
+    - Set up membership plans
+    - Configure box settings
+
+    Your admin account has full access to all platform features including member management, analytics, and competitions.
+  </Step>
+</Steps>
+
+## After Registration
+
+### Trial Period
+Your box starts with a 'trial' subscription status, giving you full access to evaluate the platform.
+
+### Next Steps
+1. **Add Staff**: Invite coaches and receptionists to your box
+2. **Configure Session Types**: Set up your class categories (CrossFit, Weightlifting, etc.)
+3. **Create Membership Plans**: Define pricing and duration options
+4. **Import Members**: Start adding your athlete roster
+5. **Build Schedule**: Create your weekly class schedule
+
+## Troubleshooting
+
+<Accordion title="URL slug is already taken">
+  If your desired slug is unavailable, try:
+  - Adding your city name: `crossfit-arena-miami`
+  - Including a number: `crossfit-arena-2`
+  - Using abbreviations: `cfa-downtown`
+  
+  The system checks availability in real-time and shows a red indicator if taken.
+</Accordion>
+
+<Accordion title="Email already in use">
+  If you see an error that the email is already registered:
+  - Use a different email address
+  - Or login if you already have an account
+  - Contact support if you believe this is an error
+</Accordion>
+
+<Accordion title="Registration fails after submission">
+  If registration fails after clicking submit:
+  - Check your internet connection
+  - Verify all fields are filled correctly
+  - Try refreshing the page and starting over
+  - The system includes automatic rollback if admin account creation fails
+</Accordion>
+
+## Technical Details
+
+### URL Structure
+Production: `https://your-slug.boxora.website`  
+Development: `http://localhost:3000?box=your-slug`
+
+### Data Created
+- **Box record**: Includes name, slug, country, and subscription status
+- **Admin profile**: Linked to box with 'admin' role_id
+- **Auth account**: Secure authentication credentials
+
+### Security Features
+- Real-time slug validation prevents conflicts
+- Password minimum length enforcement
+- Email verification through Supabase Auth
+- Automatic transaction rollback on errors

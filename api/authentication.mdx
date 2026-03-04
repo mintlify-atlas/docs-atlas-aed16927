@@ -1,0 +1,559 @@
+---
+title: Authentication API
+description: Manage user authentication, sessions, and profiles in BoxApp
+---
+
+## Overview
+
+BoxApp uses Supabase Auth for authentication, providing secure user management with support for email/password authentication and OAuth providers like Google. The authentication system is integrated with user profiles and role-based access control.
+
+## Authentication Context
+
+The `AuthContext` provides a React hook for managing authentication throughout your application:
+
+```typescript
+import { useAuth } from '@/contexts/AuthContext';
+
+function MyComponent() {
+  const {
+    session,
+    user,
+    userProfile,
+    currentBox,
+    loading,
+    isAdmin,
+    isCoach,
+    isAthlete,
+    signIn,
+    signUp,
+    signOut
+  } = useAuth();
+  
+  // Use authentication state
+}
+```
+
+## Auth Context Interface
+
+<ParamField path="session" type="Session | null">
+  The current Supabase session object, or `null` if not authenticated.
+</ParamField>
+
+<ParamField path="user" type="User | null">
+  The current authenticated user from Supabase Auth.
+</ParamField>
+
+<ParamField path="userProfile" type="Profile | null">
+  The user's profile record from the `profiles` table, including role and box association.
+</ParamField>
+
+<ParamField path="currentBox" type="Box | null">
+  The user's associated box/gym settings and configuration.
+</ParamField>
+
+<ParamField path="loading" type="boolean">
+  `true` while authentication state is being loaded or updated.
+</ParamField>
+
+<ParamField path="isAdmin" type="boolean">
+  `true` if the user has the `admin` role.
+</ParamField>
+
+<ParamField path="isCoach" type="boolean">
+  `true` if the user has the `coach` role.
+</ParamField>
+
+<ParamField path="isRoot" type="boolean">
+  `true` if the user is a root/super admin (`root@test.com` or `is_root` metadata).
+</ParamField>
+
+<ParamField path="isAthlete" type="boolean">
+  `true` if the user has the `athlete` role.
+</ParamField>
+
+## Sign In
+
+Authenticate a user with email and password.
+
+```typescript
+const { signIn, loading } = useAuth();
+
+const handleSignIn = async () => {
+  const result = await signIn({
+    email: 'athlete@example.com',
+    password: 'securePassword123'
+  });
+  
+  if (result.error) {
+    console.error('Sign in failed:', result.error.message);
+  } else {
+    console.log('Signed in successfully:', result.data.user);
+  }
+};
+```
+
+### Parameters
+
+<ParamField path="credentials" type="object" required>
+  <Expandable title="properties">
+    <ParamField path="email" type="string" required>
+      The user's email address
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      The user's password
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="error" type="AuthError | null">
+  An error object if authentication failed, otherwise `null`.
+</ResponseField>
+
+<ResponseField name="data" type="object | undefined">
+  Contains the user and session data on successful authentication.
+  
+  <Expandable title="properties">
+    <ResponseField name="user" type="User">
+      The authenticated user object
+    </ResponseField>
+    <ResponseField name="session" type="Session">
+      The new session object
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The `signIn` function automatically fetches the user's profile and box settings after successful authentication.
+</Note>
+
+## Sign In with Google
+
+Authenticate using Google OAuth.
+
+```typescript
+const { signInWithGoogle } = useAuth();
+
+const handleGoogleSignIn = async () => {
+  const result = await signInWithGoogle('box-123');
+  
+  if (result.error) {
+    console.error('Google sign in failed:', result.error.message);
+  }
+  // User will be redirected to Google for authentication
+};
+```
+
+### Parameters
+
+<ParamField path="boxId" type="string" optional>
+  The box ID to associate with the user after OAuth authentication. If provided, it will be stored and reconciled after the OAuth redirect.
+</ParamField>
+
+### Returns
+
+<ResponseField name="error" type="AuthError | null">
+  An error object if the OAuth flow failed to initiate, otherwise `null`.
+</ResponseField>
+
+<Warning>
+  When using OAuth, the user will be redirected to `/auth/callback` after authentication. Ensure this route is properly configured in your application.
+</Warning>
+
+## Sign Up
+
+Create a new user account.
+
+```typescript
+const { signUp } = useAuth();
+
+const handleSignUp = async () => {
+  const result = await signUp({
+    email: 'newathlete@example.com',
+    password: 'securePassword123',
+    options: {
+      data: {
+        first_name: 'John',
+        last_name: 'Doe'
+      }
+    }
+  });
+  
+  if (result.error) {
+    console.error('Sign up failed:', result.error.message);
+  } else {
+    console.log('Account created:', result.data.user);
+  }
+};
+```
+
+### Parameters
+
+<ParamField path="credentials" type="object" required>
+  <Expandable title="properties">
+    <ParamField path="email" type="string" required>
+      The new user's email address
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      The new user's password (minimum 6 characters)
+    </ParamField>
+    <ParamField path="options" type="object" optional>
+      <Expandable title="properties">
+        <ParamField path="data" type="object" optional>
+          Additional user metadata (e.g., `first_name`, `last_name`)
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="data" type="object">
+  Contains the new user and session information.
+  
+  <Expandable title="properties">
+    <ResponseField name="user" type="User | null">
+      The newly created user object
+    </ResponseField>
+    <ResponseField name="session" type="Session | null">
+      The new session (may be `null` if email confirmation is required)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="AuthError | null">
+  An error object if registration failed, otherwise `null`.
+</ResponseField>
+
+<Note>
+  In multi-tenant environments, the `box_id` is automatically injected from the tenant context during sign-up.
+</Note>
+
+## Password Reset
+
+Initiate a password reset flow for a user.
+
+```typescript
+const { resetPassword } = useAuth();
+
+const handlePasswordReset = async () => {
+  const result = await resetPassword('user@example.com');
+  
+  if (result.error) {
+    console.error('Password reset failed:', result.error.message);
+  } else {
+    console.log('Password reset email sent');
+  }
+};
+```
+
+### Parameters
+
+<ParamField path="email" type="string" required>
+  The email address of the account to reset
+</ParamField>
+
+### Returns
+
+<ResponseField name="error" type="AuthError | null">
+  An error object if the password reset request failed, otherwise `null`.
+</ResponseField>
+
+<Note>
+  The password reset email will contain a link to `/reset-password` in your application.
+</Note>
+
+## Update User
+
+Update the authenticated user's email or password.
+
+```typescript
+const { updateUser } = useAuth();
+
+const handleUpdateEmail = async () => {
+  const result = await updateUser({
+    email: 'newemail@example.com'
+  });
+  
+  if (result.error) {
+    console.error('Update failed:', result.error.message);
+  }
+};
+
+const handleUpdatePassword = async () => {
+  const result = await updateUser({
+    password: 'newSecurePassword123'
+  });
+  
+  if (result.error) {
+    console.error('Password update failed:', result.error.message);
+  }
+};
+```
+
+### Parameters
+
+<ParamField path="attributes" type="object" required>
+  <Expandable title="properties">
+    <ParamField path="email" type="string" optional>
+      New email address
+    </ParamField>
+    <ParamField path="password" type="string" optional>
+      New password
+    </ParamField>
+    <ParamField path="data" type="object" optional>
+      User metadata to update
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="data" type="object">
+  Contains the updated user information.
+  
+  <Expandable title="properties">
+    <ResponseField name="user" type="User">
+      The updated user object
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="AuthError | null">
+  An error object if the update failed, otherwise `null`.
+</ResponseField>
+
+## Sign Out
+
+End the current user session.
+
+```typescript
+const { signOut } = useAuth();
+
+const handleSignOut = async () => {
+  await signOut();
+  console.log('Signed out successfully');
+};
+```
+
+<Note>
+  The `signOut` function automatically clears the session and resets the authentication state.
+</Note>
+
+## Refresh Profile
+
+Manually refresh the user's profile and box data from the database.
+
+```typescript
+const { refreshProfile } = useAuth();
+
+const handleRefresh = async () => {
+  await refreshProfile();
+  console.log('Profile refreshed');
+};
+```
+
+This is useful after updating profile data to ensure the context has the latest information.
+
+## Set Current Box
+
+Manually set the current box context.
+
+```typescript
+const { setCurrentBox } = useAuth();
+
+const handleSwitchBox = (box: Box) => {
+  setCurrentBox(box);
+};
+```
+
+### Parameters
+
+<ParamField path="box" type="Box | null" required>
+  The box object to set as current, or `null` to clear.
+</ParamField>
+
+## User Profiles
+
+After authentication, user profiles are stored in the `profiles` table with the following structure:
+
+```typescript
+type Profile = {
+  id: string;                      // Matches auth.users.id
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  role_id: string;                 // 'admin' | 'coach' | 'athlete'
+  box_id: string | null;           // Associated gym/box
+  force_password_change: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+```
+
+### Accessing Profile Data
+
+```typescript
+const { data: profile, error } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('id', user.id)
+  .single();
+```
+
+### Updating Profile Data
+
+```typescript
+const { error } = await supabase
+  .from('profiles')
+  .update({
+    first_name: 'Jane',
+    last_name: 'Smith',
+    avatar_url: 'https://example.com/avatar.jpg'
+  })
+  .eq('id', user.id);
+```
+
+## Role-Based Access Control
+
+BoxApp implements role-based permissions:
+
+### Roles
+
+<ParamField path="admin" type="role">
+  Full access to all box management features, settings, and user management
+</ParamField>
+
+<ParamField path="coach" type="role">
+  Can manage classes, workouts, and view member information
+</ParamField>
+
+<ParamField path="athlete" type="role">
+  Standard member access to book classes, view workouts, and track PRs
+</ParamField>
+
+<ParamField path="root" type="role">
+  Super admin with cross-box access (system administrators only)
+</ParamField>
+
+### Checking Roles
+
+```typescript
+const { isAdmin, isCoach, isAthlete, isRoot } = useAuth();
+
+if (isAdmin) {
+  // Show admin features
+}
+
+if (isCoach || isAdmin) {
+  // Show coach and admin features
+}
+```
+
+## Multi-Tenant Authentication
+
+BoxApp supports multi-tenancy where each box/gym is a separate tenant:
+
+### Tenant Context
+
+When using the `AuthProvider`, you can specify a `tenantBoxId`:
+
+```typescript
+<AuthProvider tenantBoxId="box-123">
+  <App />
+</AuthProvider>
+```
+
+This ensures:
+- New users are automatically associated with the box
+- OAuth callbacks reconcile the box association
+- Profile queries respect box boundaries
+
+### Box Reconciliation
+
+After OAuth authentication, BoxApp automatically reconciles the user's box association:
+
+1. Checks for a pending box ID from localStorage
+2. Falls back to the tenant context box ID
+3. Updates the user's profile if needed
+4. Clears temporary storage
+
+## Session Management
+
+Supabase automatically manages session tokens and refresh tokens:
+
+### Getting Current Session
+
+```typescript
+const { data: { session }, error } = await supabase.auth.getSession();
+```
+
+### Listening for Auth Changes
+
+```typescript
+const { data: { subscription } } = supabase.auth.onAuthStateChange(
+  (event, session) => {
+    console.log('Auth event:', event);
+    console.log('Session:', session);
+  }
+);
+
+// Cleanup
+subscription.unsubscribe();
+```
+
+### Auth Events
+
+- `SIGNED_IN` - User signed in
+- `SIGNED_OUT` - User signed out
+- `TOKEN_REFRESHED` - Session token refreshed
+- `USER_UPDATED` - User data updated
+- `PASSWORD_RECOVERY` - Password reset initiated
+
+## Security Best Practices
+
+<Warning>
+  Never expose your `service_role` key in client-side code. Always use the `anon` key, which respects row-level security policies.
+</Warning>
+
+### Row-Level Security
+
+BoxApp uses PostgreSQL row-level security (RLS) to ensure users can only access data within their box:
+
+```sql
+-- Example RLS policy
+CREATE POLICY "Users can view profiles in their box"
+ON profiles
+FOR SELECT
+USING (box_id = (SELECT box_id FROM profiles WHERE id = auth.uid()));
+```
+
+### Password Requirements
+
+- Minimum 6 characters (enforced by Supabase Auth)
+- Consider implementing client-side validation for stronger passwords
+
+### Email Verification
+
+Configure email verification in your Supabase project settings to require users to confirm their email before accessing the application.
+
+## Error Codes
+
+Common authentication error codes:
+
+| Code | Description |
+|------|-------------|
+| `invalid_credentials` | Email or password is incorrect |
+| `email_not_confirmed` | User hasn't verified their email |
+| `user_already_exists` | Email is already registered |
+| `weak_password` | Password doesn't meet requirements |
+| `over_request_rate_limit` | Too many requests, try again later |
+
+## Next Steps
+
+- Learn about [API Overview](/api/overview) for general API usage
+- Explore [Supabase Auth Documentation](https://supabase.com/docs/guides/auth) for advanced features
+- Configure row-level security policies in your Supabase dashboard

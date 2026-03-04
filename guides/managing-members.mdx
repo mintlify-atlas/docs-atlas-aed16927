@@ -1,0 +1,474 @@
+---
+title: Managing Members
+description: Add, edit, and track your box's athletes, coaches, and staff
+---
+
+# Managing Members
+
+The Members page is your athlete and staff management hub. Add new members, track medical information, manage roles, and monitor membership status all in one place.
+
+## Overview
+
+BoxApp's member management system handles:
+- Athlete profiles with emergency contacts
+- Medical history tracking
+- Role-based permissions (Athlete, Coach, Receptionist, Admin)
+- Membership plan assignment
+- Waiver status tracking
+- Payment monitoring
+
+## Member Roles
+
+### Available Roles
+
+| Role | Permissions | Use Case |
+|------|-------------|----------|
+| **Athlete** | View schedule, book classes, see own stats | Regular gym members |
+| **Coach** | All athlete features + view member lists, manage sessions | Training staff |
+| **Receptionist** | Check-in members, view schedules, manage bookings | Front desk staff |
+| **Admin** | Full system access, settings, billing, member management | Box owners/managers |
+
+<Warning>
+  Only the root user (root@test.com) can assign Admin roles. This prevents accidental permission escalation.
+</Warning>
+
+## Adding New Members
+
+<Note>
+  Only users with Admin role can add new members to the system.
+</Note>
+
+<Steps>
+  <Step title="Open Add Member Dialog">
+    Click the "ADD MEMBER" button in the top-right corner. This opens the member creation form.
+  </Step>
+
+  <Step title="Enter Basic Information">
+    ### Required Fields
+    - **First Name**: Athlete's first name
+    - **Last Name**: Athlete's last name  
+    - **Email**: Valid email address (must be unique)
+    - **Role**: Select from dropdown (defaults to Athlete)
+
+    The email will be used for:
+    - Platform login credentials
+    - System notifications
+    - Password resets
+  </Step>
+
+  <Step title="Add Medical Information (Optional)">
+    ### Medical History
+    Record any conditions coaches should know about:
+    - Injuries or limitations
+    - Heart conditions
+    - Asthma or breathing issues
+    - Recent surgeries
+    - Medication that affects training
+
+    <Tip>
+      This information appears prominently in the member's detail view for quick coach reference during class.
+    </Tip>
+  </Step>
+
+  <Step title="Set Emergency Contact (Optional)">
+    ### Emergency Contact Fields
+    - **Contact Name**: Full name of emergency contact
+    - **Phone Number**: Contact phone with country code
+
+    Example: "+1 555-123-4567"
+
+    <Warning>
+      Emergency contact information is critical for safety. Encourage members to provide this during onboarding.
+    </Warning>
+  </Step>
+
+  <Step title="Configure Account Access">
+    ### Enable Account Checkbox
+
+    When checked (default), the system:
+    1. Creates a full authentication account
+    2. Sets initial password to: `BoxApp2026!`
+    3. Forces password change on first login
+    4. Links account to your box with selected role
+
+    When unchecked:
+    - Creates profile only (no login access)
+    - Useful for family accounts or inactive members
+    - Can be enabled later
+  </Step>
+
+  <Step title="Submit and Confirm">
+    Click "ADD MEMBER" to create the profile.
+
+    The system:
+    - Calls the `create-member` Edge Function
+    - Validates email uniqueness
+    - Creates auth account (if enabled)
+    - Links member to your box
+    - Sets role permissions
+    - Returns success or detailed error
+
+    <Note>
+      The initial password `BoxApp2026!` is temporary and must be changed on first login for security.
+    </Note>
+  </Step>
+</Steps>
+
+## Viewing Members
+
+### Search and Filter
+
+At the top of the member list:
+
+**Search Bar**: Type to filter by:
+- First name
+- Last name  
+- Email address
+
+Search is case-insensitive and filters in real-time.
+
+<Tip>
+  Use the search bar to quickly find members during check-in or when coaches need to pull up athlete information.
+</Tip>
+
+### Desktop Table View
+
+The member table displays:
+
+| Column | Information |
+|--------|-------------|
+| **Member** | Avatar, full name, email |
+| **Role** | Badge showing permission level |
+| **Status** | Active, Inactive, or On Hold |
+| **Waiver** | Signed (green check) or Pending (red alert) |
+| **Joined** | Account creation date |
+| **Actions** | "Details" button |
+
+#### Status Colors
+
+- **Active**: Default badge (primary color)
+- **Inactive**: Red badge
+- **On Hold**: Gray badge
+
+### Mobile Card View
+
+On small screens, members display as cards showing:
+- Avatar with initials
+- Name and email
+- Status and role badges
+- Waiver status indicator
+- Tap any card to view details
+
+### Pagination
+
+- **8 members per page**
+- Page numbers at bottom
+- Previous/Next buttons
+- Shows: "Showing 1-8 of 45 MEMBERS"
+
+<Note>
+  Pagination resets to page 1 when you use the search filter.
+</Note>
+
+## Member Detail View
+
+Click "Details" or tap any member card to open the full profile:
+
+<Steps>
+  <Step title="Header Section">
+    Displays:
+    - Large avatar with initials
+    - Full name (bold, uppercase)
+    - Role badge
+    - Status badge
+    - Background gradient for visual hierarchy
+  </Step>
+
+  <Step title="Info Panel">
+    Two-column grid showing:
+
+    **Left**: Contact information
+    - Email address
+    - Join date
+
+    **Right**: Waiver status
+    - Green check if signed
+    - Red alert if pending
+  </Step>
+
+  <Step title="Medical Background">
+    Rose-tinted panel with stethoscope icon:
+    - Shows recorded medical history
+    - Defaults to "No medical history recorded" if empty
+    - Easily visible for coach safety reference
+  </Step>
+
+  <Step title="Membership Status">
+    Displays active memberships:
+
+    For each membership:
+    - Status (ACTIVE, EXPIRED, etc.)
+    - Start and end dates
+    - Color-coded badge
+
+    **If no active membership**:
+    - Shows available membership plans
+    - Click any plan to select it
+    - "ASSIGN PLAN" button appears
+    - Automatic date calculation (start = today, end = today + duration)
+  </Step>
+
+  <Step title="Emergency Contact Panel">
+    Grid displaying:
+    - Contact name
+    - Phone number
+    - Phone icon indicator
+    - Shows "---" if not provided
+  </Step>
+</Steps>
+
+## Member Management Actions
+
+### Edit Member Information
+
+<Steps>
+  <Step title="Open Edit Form">
+    In the member detail view, click "EDIT INFO" button.
+  </Step>
+
+  <Step title="Modify Fields">
+    You can update:
+    - First name
+    - Last name
+    - Medical history
+    - Emergency contact name
+    - Emergency contact phone
+    - Role (if you have permissions)
+    - Status (Active/Inactive/On Hold)
+  </Step>
+
+  <Step title="Save Changes">
+    Click "UPDATE" to save.
+
+    The system:
+    - Validates all fields
+    - Updates the database
+    - Refreshes the detail view
+    - Shows success notification
+  </Step>
+</Steps>
+
+### Reset Member Password
+
+Admins can reset passwords for members who are locked out:
+
+1. Click the key icon in member details
+2. Confirm the password reset
+3. Password changes to: `12345678`
+4. Member must change it on next login
+
+<Warning>
+  Password resets should only be used when members cannot access their accounts. The temporary password is intentionally simple but expires on first use.
+</Warning>
+
+### Assign Membership Plan
+
+**Quick Assignment Flow**:
+
+1. Open member details (must have no active membership)
+2. Browse available plans displayed as cards
+3. Click to select a plan (highlights in primary color)
+4. Click "ASSIGN PLAN" button
+5. System automatically:
+   - Sets start_date to today
+   - Calculates end_date (start + plan duration)
+   - Creates membership record
+   - Links to athlete and box
+   - Sets status to 'active'
+
+<Tip>
+  Plan cards show the plan name, duration in days, and price. Choose the plan that matches the member's purchase.
+</Tip>
+
+## Member Status Management
+
+### Status Types
+
+#### Active
+- Can book classes
+- Receives all communications
+- Shows in attendance lists
+- Default for new members
+
+#### Inactive
+- Cannot book new classes
+- Existing bookings remain
+- Useful for: extended vacations, injuries, billing holds
+
+#### On Hold
+- Temporary suspension
+- Typically for short-term breaks
+- Membership duration may pause (depending on billing settings)
+
+### Changing Status
+
+1. Open member details
+2. Click "EDIT INFO"
+3. Select new status from dropdown
+4. Save changes
+
+<Note>
+  Status changes take effect immediately. Athletes will be notified of access changes on their next login.
+</Note>
+
+## Waiver Tracking
+
+### Waiver Status Indicators
+
+**Signed** (Green):
+- ✓ Shield icon
+- "WAIVER SIGNED" text
+- Member can participate in classes
+
+**Pending** (Red):
+- ! Shield icon  
+- "WAIVER PENDING" text
+- Should complete before training
+
+### Waiver Workflow
+
+Waivers are typically:
+1. Sent during onboarding
+2. Signed electronically by member
+3. Automatically recorded in profile
+4. Updated to "signed" status
+
+<Warning>
+  Many box insurance policies require signed waivers before participation. Monitor pending waivers closely.
+</Warning>
+
+## Membership Plans
+
+### Plan Information Display
+
+When assigning plans, each card shows:
+- **Plan Name**: "Monthly Unlimited", "10-Class Pack", etc.
+- **Duration**: Days until expiration
+- **Price**: Total cost
+
+### Plan Assignment Rules
+
+- One active membership per athlete
+- New assignment requires no active membership or expired membership
+- Start date defaults to assignment date
+- End date auto-calculates from duration
+
+## Analytics and Insights
+
+### At-Risk Indicators
+
+The Members page integrates with Analytics to show:
+- Payment risk (unpaid invoices)
+- Inactivity risk (no attendance in 10+ days)
+- Membership expiration warnings
+
+These appear in the member's detail view for proactive retention.
+
+## Best Practices
+
+### Onboarding New Athletes
+
+<Steps>
+  <Step title="Collect Information">
+    During sign-up, gather:
+    - Legal name (as on waiver)
+    - Valid email
+    - Emergency contact
+    - Medical history
+    - Membership plan purchased
+  </Step>
+
+  <Step title="Create Profile">
+    - Add member in BoxApp
+    - Enable account access
+    - Assign correct role (typically Athlete)
+    - Select membership plan
+  </Step>
+
+  <Step title="Send Welcome">
+    The member receives:
+    - Welcome email (auto-generated)
+    - Temporary password
+    - Instructions for first login
+    - Waiver link (if applicable)
+  </Step>
+
+  <Step title="Verify Setup">
+    - Confirm waiver is signed
+    - Check membership is active
+    - Test that they can book classes
+  </Step>
+</Steps>
+
+### Coach and Staff Setup
+
+When adding staff:
+1. Use their work email
+2. Select appropriate role (Coach or Receptionist)
+3. Enable account access
+4. Skip membership assignment (staff don't need plans)
+5. Set status to Active
+
+<Tip>
+  Coaches should have medical information about athletes readily available. Make sure this data is complete and current.
+</Tip>
+
+### Data Maintenance
+
+**Regular Cleanup**:
+- Review inactive members quarterly
+- Update emergency contacts annually
+- Verify email addresses remain valid
+- Clean up expired or inactive accounts
+
+**Privacy Considerations**:
+- Medical information is sensitive
+- Limit access to need-to-know staff
+- Follow local data protection regulations
+
+## Troubleshooting
+
+<Accordion title="Can't add member - email already exists">
+  This member may:
+  - Already have an account in your box
+  - Have an account in another box using BoxApp
+  - Have mistyped their email previously
+  
+  Use the search function to verify they aren't already in your system. If confirmed unique, have them provide an alternate email.
+</Accordion>
+
+<Accordion title="Member can't login">
+  Check:
+  1. "Enable Account" was checked during creation
+  2. They're using the correct email
+  3. They're using the temporary password: `BoxApp2026!`
+  4. Their status is set to "Active"
+  5. Account creation completed successfully
+  
+  If needed, use the password reset feature.
+</Accordion>
+
+<Accordion title="Can't assign membership plan">
+  Requirements for assignment:
+  - Member must have NO active memberships
+  - At least one plan must exist in your system
+  - You must have admin permissions
+  - Member must have Active status
+</Accordion>
+
+<Accordion title="Medical information not saving">
+  Medical history is optional and saved during member creation or when editing. If it's not persisting:
+  - Check for special characters that might break the form
+  - Try keeping entries under 500 characters
+  - Contact support if issue persists
+</Accordion>

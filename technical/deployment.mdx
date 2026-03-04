@@ -1,0 +1,242 @@
+---
+title: Deployment Guide
+description: Complete guide to deploying BoxApp to production environments
+---
+
+## Overview
+
+BoxApp is a React + TypeScript application built with Vite, designed to be deployed as a static site with Supabase as the backend. This guide covers the complete deployment process from build to production.
+
+## Prerequisites
+
+Before deploying, ensure you have:
+
+- Node.js 18+ installed
+- A Supabase project (local or cloud)
+- A hosting platform account (Vercel, Netlify, or similar)
+- Access to your repository
+
+## Build Configuration
+
+### Build Scripts
+
+BoxApp uses the following npm scripts defined in `package.json`:
+
+<CodeGroup>
+```json package.json
+{
+  "scripts": {
+    "dev": "vite",
+    "predev": "npm run db:migrate || true",
+    "db:migrate": "npx supabase db push",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  }
+}
+```
+</CodeGroup>
+
+### Vite Configuration
+
+The build is configured in `vite.config.ts` with path aliases and server settings:
+
+<CodeGroup>
+```typescript vite.config.ts
+import path from "path"
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  server: {
+    allowedHosts: [
+      "boxora.website",
+      ".boxora.website"
+    ]
+  }
+})
+```
+</CodeGroup>
+
+## Deployment Process
+
+<Steps>
+  <Step title="Install Dependencies">
+    Install all required packages before building:
+    
+    ```bash
+    npm install
+    ```
+    
+    This installs all production and development dependencies including React, Vite, TypeScript, and Supabase client.
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Set up your environment variables for production. Create a `.env.production` file or configure them in your hosting platform:
+    
+    ```bash
+    VITE_SUPABASE_URL=your_production_supabase_url
+    VITE_SUPABASE_ANON_KEY=your_production_supabase_anon_key
+    ```
+    
+    <Warning>
+      Never commit `.env` files to version control. Always use environment variable management provided by your hosting platform.
+    </Warning>
+  </Step>
+
+  <Step title="Run Database Migrations">
+    Before deploying, ensure all database migrations are applied to your production Supabase instance:
+    
+    ```bash
+    npx supabase db push
+    ```
+    
+    <Tip>
+      Link your local Supabase CLI to your production project first using `npx supabase link --project-ref your-project-ref`
+    </Tip>
+  </Step>
+
+  <Step title="Build the Application">
+    Run the production build command:
+    
+    ```bash
+    npm run build
+    ```
+    
+    This command:
+    1. Runs TypeScript compiler (`tsc`) to check for type errors
+    2. Builds the application using Vite
+    3. Outputs static files to the `dist/` directory
+    
+    <Note>
+      The build will fail if there are any TypeScript errors. Fix all type errors before proceeding.
+    </Note>
+  </Step>
+
+  <Step title="Test the Build Locally">
+    Preview the production build locally before deploying:
+    
+    ```bash
+    npm run preview
+    ```
+    
+    This starts a local server serving the built files from `dist/`.
+  </Step>
+
+  <Step title="Deploy to Hosting Platform">
+    Deploy the `dist/` directory to your chosen hosting platform. See the [Hosting Guide](/technical/hosting) for platform-specific instructions.
+  </Step>
+</Steps>
+
+## Continuous Deployment
+
+### Automated Builds
+
+For automated deployments, configure your CI/CD pipeline with these steps:
+
+<CodeGroup>
+```yaml GitHub Actions Example
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - run: npm install
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      # Add deployment step for your platform
+```
+</CodeGroup>
+
+### Environment-Specific Builds
+
+You can maintain different environment configurations:
+
+- `.env.development` - Local development
+- `.env.staging` - Staging environment
+- `.env.production` - Production environment
+
+<Tip>
+  Use different Supabase projects for staging and production to keep data isolated.
+</Tip>
+
+## Build Optimization
+
+### Code Splitting
+
+Vite automatically handles code splitting. Optimize further by:
+
+- Using dynamic imports for routes
+- Lazy loading heavy components
+- Splitting vendor bundles
+
+### Asset Optimization
+
+```typescript vite.config.ts
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+        }
+      }
+    }
+  }
+})
+```
+
+## Troubleshooting
+
+### Build Fails with TypeScript Errors
+
+Run `npm run lint` to identify and fix TypeScript issues:
+
+```bash
+npm run lint
+```
+
+### Environment Variables Not Working
+
+Ensure environment variables are prefixed with `VITE_`:
+
+```bash
+# ✅ Correct
+VITE_SUPABASE_URL=https://...
+
+# ❌ Incorrect (won't be exposed to the app)
+SUPABASE_URL=https://...
+```
+
+### Build Output Too Large
+
+1. Check bundle size with `npm run build -- --mode production`
+2. Analyze chunks with `vite-bundle-visualizer`
+3. Remove unused dependencies
+4. Optimize images and assets
+
+### Routing Issues After Deployment
+
+Ensure your hosting platform is configured for SPA routing. Most platforms require a redirect rule to serve `index.html` for all routes. See the [Hosting Guide](/technical/hosting) for platform-specific configuration.
+
+## Next Steps
+
+- [Supabase Setup](/technical/supabase-setup) - Configure your Supabase backend
+- [Hosting Guide](/technical/hosting) - Platform-specific deployment instructions
+- [Environment Variables](/technical/environment-variables) - Detailed environment setup

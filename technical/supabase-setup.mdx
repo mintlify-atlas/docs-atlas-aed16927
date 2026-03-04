@@ -1,0 +1,440 @@
+---
+title: Supabase Setup
+description: Complete guide to setting up and configuring Supabase for BoxApp
+---
+
+## Overview
+
+BoxApp uses Supabase as its backend-as-a-service platform, providing authentication, database, storage, and real-time capabilities. This guide covers both local development and production setup.
+
+## Local Development Setup
+
+### Prerequisites
+
+- Docker Desktop installed and running
+- Supabase CLI installed (`npm install -g supabase`)
+- Node.js 18+
+
+### Initialize Supabase Locally
+
+<Steps>
+  <Step title="Start Supabase">
+    Initialize and start the local Supabase instance:
+    
+    ```bash
+    npx supabase start
+    ```
+    
+    This command:
+    - Pulls required Docker images
+    - Starts all Supabase services (PostgreSQL, Auth, Storage, etc.)
+    - Creates a local development environment
+    
+    <Note>
+      The first run may take several minutes to download Docker images.
+    </Note>
+  </Step>
+
+  <Step title="Note Your Credentials">
+    After starting, Supabase will display important URLs and keys:
+    
+    ```bash
+    API URL: http://127.0.0.1:54321
+    DB URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    Studio URL: http://127.0.0.1:54323
+    anon key: eyJh...
+    service_role key: eyJh...
+    ```
+    
+    Copy the `API URL` and `anon key` for your `.env` file.
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in your project root:
+    
+    ```bash
+    VITE_SUPABASE_URL=http://127.0.0.1:54321
+    VITE_SUPABASE_ANON_KEY=your_local_anon_key
+    ```
+  </Step>
+
+  <Step title="Apply Database Migrations">
+    Run all migrations to set up the database schema:
+    
+    ```bash
+    npx supabase db push
+    ```
+    
+    Or use the predev script:
+    
+    ```bash
+    npm run db:migrate
+    ```
+  </Step>
+</Steps>
+
+## Local Configuration
+
+### Supabase Config File
+
+The `supabase/config.toml` file contains all local development settings:
+
+<CodeGroup>
+```toml config.toml (Key Settings)
+# Project identifier
+project_id = "BoxApp"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+enable_signup = true
+jwt_expiry = 3600
+minimum_password_length = 6
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+```
+</CodeGroup>
+
+<Tip>
+  You can customize these settings for your local environment. Changes to `config.toml` require restarting Supabase with `npx supabase stop` and `npx supabase start`.
+</Tip>
+
+### Key Configuration Sections
+
+#### API Configuration
+
+```toml
+[api]
+port = 54321
+schemas = ["public", "graphql_public"]
+max_rows = 1000
+```
+
+- **port**: Local API endpoint port
+- **schemas**: Database schemas exposed via API
+- **max_rows**: Maximum rows returned per request (prevents accidental large queries)
+
+#### Authentication Settings
+
+```toml
+[auth]
+enable_signup = true
+jwt_expiry = 3600
+minimum_password_length = 6
+enable_refresh_token_rotation = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false  # Disabled for local dev
+```
+
+<Warning>
+  In production, set `enable_confirmations = true` to require email verification before users can sign in.
+</Warning>
+
+#### Storage Configuration
+
+```toml
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[storage.image_transformation]
+enabled = true
+```
+
+BoxApp uses Supabase Storage for user avatars and other files. The 50MiB limit can be adjusted based on your needs.
+
+## Production Setup
+
+### Create a Supabase Project
+
+<Steps>
+  <Step title="Sign Up for Supabase">
+    1. Go to [supabase.com](https://supabase.com)
+    2. Sign up or log in
+    3. Click "New Project"
+  </Step>
+
+  <Step title="Configure Your Project">
+    Provide the following information:
+    
+    - **Project Name**: BoxApp Production (or your preferred name)
+    - **Database Password**: Strong password (save this securely)
+    - **Region**: Choose closest to your users
+    - **Pricing Plan**: Select based on your needs
+    
+    <Tip>
+      Choose a region close to your primary user base for optimal performance.
+    </Tip>
+  </Step>
+
+  <Step title="Wait for Provisioning">
+    Supabase will provision your project (usually takes 1-2 minutes). Once complete, you'll have access to your project dashboard.
+  </Step>
+
+  <Step title="Get Your Project Credentials">
+    Navigate to **Project Settings > API** and copy:
+    
+    - **Project URL**: Your production API URL
+    - **anon/public key**: Your production anonymous key
+    
+    These will be used in your production environment variables.
+  </Step>
+</Steps>
+
+### Link Local Project to Production
+
+```bash
+npx supabase link --project-ref your-project-ref
+```
+
+Find your project ref in the Supabase dashboard under **Project Settings > General**.
+
+### Deploy Database Schema
+
+<Steps>
+  <Step title="Review Migrations">
+    Check which migrations will be applied:
+    
+    ```bash
+    npx supabase db diff
+    ```
+  </Step>
+
+  <Step title="Push Migrations to Production">
+    Apply all migrations to your production database:
+    
+    ```bash
+    npx supabase db push
+    ```
+    
+    <Warning>
+      Always test migrations on a staging environment before applying to production. This command will modify your production database.
+    </Warning>
+  </Step>
+
+  <Step title="Verify Schema">
+    Check the Supabase dashboard **Table Editor** to confirm all tables and policies are correctly created.
+  </Step>
+</Steps>
+
+## Database Migrations
+
+BoxApp includes comprehensive database migrations that set up:
+
+- Multi-tenant data isolation with Row Level Security (RLS)
+- User authentication and profiles
+- WOD (Workout of the Day) management
+- Member management and subscriptions
+- Competition tracking and scoring
+- Lead management
+- Financial tracking (expenses, revenue)
+- Security audit system
+- Avatar storage bucket
+
+### Migration Structure
+
+Key migrations include:
+
+```bash
+supabase/migrations/
+├── 20260206_create_avatars_bucket.sql
+├── 20260208_security_audit_system.sql
+├── 20260209_competition_module_full.sql
+├── 20260214_profiles_rls_members.sql
+├── 20260215_full_crossfit_movements.sql
+├── 20260219_rls_multi_tenant_isolation.sql
+└── 20260302_add_subscription_status.sql
+```
+
+### Multi-Tenant Isolation
+
+BoxApp implements strict tenant isolation using RLS policies. The key helper function:
+
+```sql
+CREATE OR REPLACE FUNCTION public.current_user_box_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT box_id FROM public.profiles WHERE id = auth.uid()
+$$;
+```
+
+This ensures users can only access data from their own gym (box).
+
+<Note>
+  All tables with multi-tenant data include RLS policies that filter by `box_id` using the `current_user_box_id()` function.
+</Note>
+
+## Storage Setup
+
+### Avatar Bucket Configuration
+
+BoxApp uses a storage bucket for user avatars:
+
+```sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true);
+
+CREATE POLICY "Avatar images are publicly accessible"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'avatars');
+
+CREATE POLICY "Users can upload their own avatar"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'avatars' AND
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+```
+
+### Additional Storage Buckets
+
+You can create additional buckets for:
+
+- Workout images/videos
+- Competition media
+- Document storage
+- Export files
+
+## Authentication Configuration
+
+### Email Authentication
+
+Configure email settings in the Supabase dashboard:
+
+1. Navigate to **Authentication > Settings**
+2. Configure **Email Templates** for:
+   - Confirmation emails
+   - Password reset
+   - Magic link
+3. Set **Site URL** to your production domain
+4. Add **Redirect URLs** for allowed authentication redirects
+
+### OAuth Providers (Optional)
+
+Enable social authentication:
+
+1. Go to **Authentication > Providers**
+2. Enable desired providers (Google, GitHub, etc.)
+3. Configure OAuth credentials from each provider
+
+<CodeGroup>
+```toml Google OAuth Example
+[auth.external.google]
+enabled = true
+client_id = "your-google-client-id"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = "https://your-project.supabase.co/auth/v1/callback"
+```
+</CodeGroup>
+
+## Environment Variables
+
+### Development
+
+```bash
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=your_local_anon_key
+```
+
+### Production
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_production_anon_key
+```
+
+<Warning>
+  Never commit the `service_role` key to version control or expose it in client-side code. Only use the `anon` key in your frontend application.
+</Warning>
+
+## Monitoring and Maintenance
+
+### Database Performance
+
+Monitor your database in the Supabase dashboard:
+
+- **Database > Performance**: Query performance insights
+- **Database > Logs**: Real-time database logs
+- **Database > Backups**: Automated backup status
+
+### Usage Monitoring
+
+Track your usage under **Project Settings > Usage**:
+
+- Database size
+- API requests
+- Storage usage
+- Bandwidth
+
+<Tip>
+  Set up usage alerts to avoid unexpected service interruptions when approaching plan limits.
+</Tip>
+
+## Troubleshooting
+
+### Local Supabase Won't Start
+
+1. Ensure Docker is running
+2. Check port availability: `lsof -i :54321,54322,54323`
+3. Reset Supabase: `npx supabase db reset`
+
+### Migration Failures
+
+```bash
+# Check migration status
+npx supabase migration list
+
+# Repair migration history
+npx supabase migration repair
+```
+
+### RLS Policy Issues
+
+Test RLS policies in the SQL Editor:
+
+```sql
+-- Test as authenticated user
+SET request.jwt.claims.sub = 'user-uuid';
+SELECT * FROM wods;
+```
+
+### Connection Issues
+
+Verify your connection:
+
+```typescript
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
+
+// Test connection
+const { data, error } = await supabase.from('profiles').select('count')
+console.log(data, error)
+```
+
+## Next Steps
+
+- [Deployment Guide](/technical/deployment) - Deploy your application
+- [Environment Variables](/technical/environment-variables) - Complete environment configuration
+- [Database Schema](/technical/database-schema) - Understand the data model

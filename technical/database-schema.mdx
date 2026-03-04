@@ -1,0 +1,678 @@
+---
+title: Database Schema
+description: Complete database schema documentation for BoxApp's PostgreSQL database
+---
+
+## Overview
+
+BoxApp uses PostgreSQL via Supabase with a normalized relational schema. All tables include tenant isolation via `box_id` foreign keys and are protected by Row-Level Security (RLS) policies.
+
+## Core Tables
+
+### boxes
+
+Stores tenant (gym) configurations:
+
+```sql
+CREATE TABLE boxes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
+    subscription_status subscription_status_type NOT NULL DEFAULT 'trial',
+    logo_url TEXT,
+    favicon_url TEXT,
+    login_background_url TEXT,
+    theme_config JSONB,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Key Fields:**
+
+- `slug`: Unique identifier for subdomain routing (e.g., `crossfitbox`)
+- `subscription_status`: Enum: `trial`, `active`, `suspended`, `cancelled`
+- `theme_config`: JSONB storing primary color, radius, design style
+
+<Note>
+The `slug` must be globally unique across all tenants. It's used for subdomain resolution in production.
+</Note>
+
+### profiles
+
+Extends Supabase Auth users with application-specific data:
+
+```sql
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id),
+    box_id UUID REFERENCES boxes(id),
+    role_id TEXT REFERENCES roles(id),
+    email TEXT,
+    full_name TEXT,
+    avatar_url TEXT,
+    phone TEXT,
+    emergency_contact TEXT,
+    emergency_phone TEXT,
+    date_of_birth DATE,
+    address TEXT,
+    force_password_change BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Key Relationships:**
+
+- Links to `auth.users` (Supabase Auth)
+- Scoped to a `box_id` (tenant)
+- Has a `role_id` for RBAC
+
+<Warning>
+The `force_password_change` flag forces users to reset password on next login. Used for admin password resets.
+</Warning>
+
+### roles
+
+Defines available user roles:
+
+```sql
+CREATE TABLE roles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Standard Roles:**
+
+- `admin`: Full access to box management
+- `coach`: Can manage WODs, members, competitions
+- `receptionist`: Can manage members, leads, billing
+- `athlete`: Standard member with limited access
+
+<Tip>
+Roles are system-wide and shared across tenants. They're read-only for regular users.
+</Tip>
+
+## Member Management
+
+### leads
+
+Tracks potential members:
+
+```sql
+CREATE TABLE leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    source TEXT,
+    status TEXT,
+    notes TEXT,
+    assigned_to UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Access Control:**
+
+- Admins and receptionists can create/update
+- Coaches can view only
+
+### plans
+
+Defines membership plans:
+
+```sql
+CREATE TABLE plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2),
+    billing_period TEXT, -- 'monthly', 'quarterly', 'annual'
+    sessions_per_week INTEGER,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### memberships
+
+Tracks active member subscriptions:
+
+```sql
+CREATE TABLE memberships (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id),
+    plan_id UUID NOT NULL REFERENCES plans(id),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    status TEXT, -- 'active', 'paused', 'cancelled'
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+## Workout Management
+
+### wods
+
+Stores Workout of the Day entries:
+
+```sql
+CREATE TABLE wods (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    wod_type wod_type, -- ENUM: 'amrap', 'emom', 'fortime', 'strength', 'skill'
+    description TEXT,
+    time_cap_minutes INTEGER,
+    rounds INTEGER,
+    rest_seconds INTEGER,
+    notes TEXT,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**WOD Types:**
+
+```sql
+CREATE TYPE wod_type AS ENUM (
+    'amrap',    -- As Many Rounds/Reps As Possible
+    'emom',     -- Every Minute On the Minute
+    'fortime',  -- For Time (fastest completion)
+    'strength', -- Strength training
+    'skill'     -- Skill development
+);
+```
+
+### results
+
+Tracks athlete performance on WODs:
+
+```sql
+CREATE TABLE results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wod_id UUID NOT NULL REFERENCES wods(id),
+    athlete_id UUID NOT NULL REFERENCES profiles(id),
+    score_value NUMERIC,
+    score_display TEXT, -- e.g., "15:32", "135 reps", "225 lbs"
+    notes TEXT,
+    rx BOOLEAN DEFAULT false, -- As prescribed (no scaling)
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### movements
+
+Library of CrossFit movements:
+
+```sql
+CREATE TABLE movements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    name TEXT NOT NULL,
+    category TEXT, -- 'gymnastics', 'weightlifting', 'cardio'
+    description TEXT,
+    video_url TEXT,
+    difficulty TEXT, -- 'beginner', 'intermediate', 'advanced'
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### personal_records
+
+Tracks athlete PRs:
+
+```sql
+CREATE TABLE personal_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    athlete_id UUID NOT NULL REFERENCES profiles(id),
+    movement_id UUID REFERENCES movements(id),
+    record_type TEXT, -- '1RM', '3RM', '5RM', 'max_reps', 'fastest_time'
+    value NUMERIC,
+    unit TEXT, -- 'lbs', 'kg', 'seconds', 'reps'
+    achieved_date DATE,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+## Schedule & Booking
+
+### classes
+
+Defines class schedule:
+
+```sql
+CREATE TABLE classes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    coach_id UUID REFERENCES profiles(id),
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    capacity INTEGER NOT NULL,
+    program_id UUID,
+    recurrence_rule TEXT, -- iCal RRULE format
+    is_canceled BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### bookings
+
+Tracks class reservations:
+
+```sql
+CREATE TABLE bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    user_id UUID NOT NULL REFERENCES profiles(id),
+    class_id UUID REFERENCES classes(id),
+    status TEXT, -- 'confirmed', 'waitlist', 'cancelled', 'completed'
+    checked_in BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+## Competition Management
+
+### competitions
+
+Main competition entity:
+
+```sql
+CREATE TABLE competitions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    registration_deadline DATE,
+    status TEXT, -- 'draft', 'open', 'in_progress', 'completed'
+    max_participants INTEGER,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### competition_events
+
+Individual workouts within a competition:
+
+```sql
+CREATE TABLE competition_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    competition_id UUID NOT NULL REFERENCES competitions(id),
+    title TEXT NOT NULL,
+    name TEXT,
+    description TEXT,
+    wod_id UUID REFERENCES wods(id),
+    wod_type wod_type,
+    order_index INTEGER,
+    time_cap_seconds INTEGER,
+    scoring_type TEXT, -- 'time', 'reps', 'weight', 'points'
+    tie_break_strategy TEXT,
+    standards_text TEXT,
+    standards_video_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### competition_participants
+
+Registrations for competitions:
+
+```sql
+CREATE TABLE competition_participants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    competition_id UUID NOT NULL REFERENCES competitions(id),
+    user_id UUID REFERENCES profiles(id),
+    team_id UUID REFERENCES competition_teams(id),
+    division_id UUID REFERENCES competition_divisions(id),
+    division TEXT,
+    status TEXT, -- 'registered', 'withdrawn', 'disqualified'
+    waiver_signed BOOLEAN DEFAULT false,
+    checked_in BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### competition_scores
+
+Event results:
+
+```sql
+CREATE TABLE competition_scores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    event_id UUID NOT NULL REFERENCES competition_events(id),
+    participant_id UUID NOT NULL REFERENCES competition_participants(id),
+    score_value NUMERIC NOT NULL,
+    score_display TEXT NOT NULL,
+    tie_break_value NUMERIC,
+    judge_user_id UUID REFERENCES profiles(id),
+    judge_signature TEXT,
+    athlete_signature BOOLEAN DEFAULT false,
+    is_validated BOOLEAN DEFAULT false,
+    validated_by UUID REFERENCES profiles(id),
+    status score_status, -- ENUM: 'pending', 'validated', 'disputed'
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Score Status Enum:**
+
+```sql
+CREATE TYPE score_status AS ENUM ('pending', 'validated', 'disputed');
+```
+
+### competition_divisions
+
+Divisions for fair competition:
+
+```sql
+CREATE TABLE competition_divisions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    competition_id UUID NOT NULL REFERENCES competitions(id),
+    name TEXT NOT NULL,
+    description TEXT,
+    gender TEXT, -- 'male', 'female', 'mixed'
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### competition_teams
+
+Team competitions:
+
+```sql
+CREATE TABLE competition_teams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    competition_id UUID NOT NULL REFERENCES competitions(id),
+    name TEXT NOT NULL,
+    captain_id UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### competition_heats
+
+Heat scheduling:
+
+```sql
+CREATE TABLE competition_heats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    competition_id UUID NOT NULL REFERENCES competitions(id),
+    event_id UUID REFERENCES competition_events(id),
+    name TEXT NOT NULL,
+    start_time TIMESTAMPTZ,
+    status TEXT, -- 'scheduled', 'in_progress', 'completed'
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### lane_assignments
+
+Lane assignments within heats:
+
+```sql
+CREATE TABLE lane_assignments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    heat_id UUID NOT NULL REFERENCES competition_heats(id),
+    participant_id UUID REFERENCES competition_participants(id),
+    lane_number INTEGER NOT NULL
+);
+```
+
+## Billing
+
+### invoices
+
+Member invoices:
+
+```sql
+CREATE TABLE invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    user_id UUID REFERENCES profiles(id),
+    invoice_number TEXT UNIQUE,
+    amount DECIMAL(10,2) NOT NULL,
+    due_date DATE,
+    status TEXT, -- 'draft', 'sent', 'paid', 'overdue', 'cancelled'
+    items JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### expenses
+
+Gym operating expenses:
+
+```sql
+CREATE TABLE expenses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    description TEXT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    category TEXT,
+    date DATE NOT NULL,
+    vendor TEXT,
+    receipt_url TEXT,
+    created_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+## Audit & Security
+
+### audit_logs
+
+Automatic change tracking:
+
+```sql
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID,
+    table_name TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    action TEXT NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
+    old_data JSONB,
+    new_data JSONB,
+    changed_by UUID REFERENCES profiles(id),
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Trigger Function:**
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:529-551
+CREATE OR REPLACE FUNCTION public.proc_audit_log()
+RETURNS TRIGGER AS $$
+DECLARE
+    current_user_id UUID; current_box_id UUID; v_record_id TEXT;
+BEGIN
+    current_user_id := auth.uid();
+    SELECT box_id INTO current_box_id FROM public.profiles WHERE id = current_user_id;
+    IF (TG_OP = 'DELETE') THEN
+        v_record_id := (row_to_json(OLD)->>'id')::TEXT;
+        INSERT INTO public.audit_logs (table_name, record_id, action, old_data, changed_by, box_id) VALUES (TG_TABLE_NAME, v_record_id, TG_OP, row_to_json(OLD), current_user_id, current_box_id);
+        RETURN OLD;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        v_record_id := (row_to_json(NEW)->>'id')::TEXT;
+        INSERT INTO public.audit_logs (table_name, record_id, action, old_data, new_data, changed_by, box_id) VALUES (TG_TABLE_NAME, v_record_id, TG_OP, row_to_json(OLD), row_to_json(NEW), current_user_id, current_box_id);
+        RETURN NEW;
+    ELSIF (TG_OP = 'INSERT') THEN
+        v_record_id := (row_to_json(NEW)->>'id')::TEXT;
+        INSERT INTO public.audit_logs (table_name, record_id, action, new_data, changed_by, box_id) VALUES (TG_TABLE_NAME, v_record_id, TG_OP, row_to_json(NEW), current_user_id, current_box_id);
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+<Note>
+Audit triggers are automatically attached to critical tables (profiles, boxes, plans, memberships, wods, competitions, leads, expenses).
+</Note>
+
+### automation_logs
+
+Tracks automated actions:
+
+```sql
+CREATE TABLE automation_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID,
+    action_type TEXT NOT NULL,
+    target_user_id UUID,
+    performed_by UUID,
+    status TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+## Storage
+
+### Avatars Bucket
+
+Supabase Storage bucket for user avatars:
+
+```sql
+-- supabase/migrations/20260206_create_avatars_bucket.sql
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true);
+```
+
+**RLS Policies:**
+
+- Anyone can view avatars (public bucket)
+- Only authenticated users can upload their own avatar
+- Users can update/delete their own avatar
+
+## Database Functions
+
+### current_user_box_id()
+
+Helper function for RLS policies:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:8-11
+CREATE OR REPLACE FUNCTION public.current_user_box_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT box_id FROM public.profiles WHERE id = auth.uid()
+$$;
+```
+
+<Tip>
+This function is used extensively in RLS policies to enforce tenant isolation.
+</Tip>
+
+### is_tenant_active()
+
+Checks if tenant subscription is active:
+
+```sql
+-- supabase/migrations/20260302_add_subscription_status.sql:51-61
+CREATE OR REPLACE FUNCTION public.is_tenant_active()
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT COALESCE(
+    (
+      SELECT subscription_status IN ('active', 'trial')
+      FROM public.boxes
+      WHERE id = public.current_user_box_id()
+    ),
+    false
+  )
+$$;
+```
+
+### admin_reset_password()
+
+Allows admins to reset user passwords within their tenant:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:501-524
+CREATE OR REPLACE FUNCTION public.admin_reset_password(target_user_id UUID)
+RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth, extensions AS $$
+DECLARE
+    caller_role TEXT; caller_email TEXT; caller_box_id UUID;
+    target_box_id UUID; hashed TEXT; default_pw TEXT := '12345678';
+BEGIN
+    caller_email := auth.email();
+    SELECT role_id, box_id INTO caller_role, caller_box_id FROM public.profiles WHERE id = auth.uid();
+    IF caller_role IS DISTINCT FROM 'admin' AND caller_email IS DISTINCT FROM 'root@test.com' THEN
+        RETURN json_build_object('error', 'Unauthorized');
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = target_user_id) THEN
+        RETURN json_build_object('error', 'User not found');
+    END IF;
+    SELECT box_id INTO target_box_id FROM public.profiles WHERE id = target_user_id;
+    IF caller_email IS DISTINCT FROM 'root@test.com' AND target_box_id IS DISTINCT FROM caller_box_id THEN
+        RETURN json_build_object('error', 'Cannot reset password for user outside your box');
+    END IF;
+    hashed := extensions.crypt(default_pw, extensions.gen_salt('bf'));
+    UPDATE auth.users SET encrypted_password = hashed, updated_at = now() WHERE id = target_user_id;
+    UPDATE public.profiles SET force_password_change = true WHERE id = target_user_id;
+    RETURN json_build_object('success', true);
+END; $$;
+```
+
+<Warning>
+This function enforces tenant isolation: admins can only reset passwords for users in their own box (except super admin).
+</Warning>
+
+## Indexes
+
+You should create indexes on frequently queried columns:
+
+```sql
+-- Tenant isolation
+CREATE INDEX idx_profiles_box_id ON profiles(box_id);
+CREATE INDEX idx_wods_box_id ON wods(box_id);
+CREATE INDEX idx_leads_box_id ON leads(box_id);
+
+-- Foreign keys
+CREATE INDEX idx_results_wod_id ON results(wod_id);
+CREATE INDEX idx_results_athlete_id ON results(athlete_id);
+CREATE INDEX idx_bookings_class_id ON bookings(class_id);
+CREATE INDEX idx_bookings_user_id ON bookings(user_id);
+
+-- Lookups
+CREATE INDEX idx_boxes_slug ON boxes(slug);
+CREATE INDEX idx_wods_date ON wods(date);
+```
+
+## Migration Strategy
+
+Migrations are located in `supabase/migrations/` and follow a date-based naming convention:
+
+```
+20260206_create_avatars_bucket.sql
+20260208_security_audit_system.sql
+20260219_rls_multi_tenant_isolation.sql
+20260302_add_subscription_status.sql
+```
+
+<Tip>
+All migrations use defensive SQL (IF EXISTS checks) to allow safe re-running.
+</Tip>

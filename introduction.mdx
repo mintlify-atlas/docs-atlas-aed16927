@@ -1,0 +1,157 @@
+---
+title: Welcome to BoxApp
+description: The complete CrossFit gym management platform for coaches, admins, and athletes
+mode: custom
+---
+
+<div className="relative overflow-hidden bg-gradient-to-br from-[#FF6B35] via-[#E55A2B] to-[#CC4921] dark:from-[#1a1d27] dark:via-[#242838] dark:to-[#0f1117]">
+  <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] dark:bg-[url('/grid-dark.svg')]"></div>
+  <div className="relative py-20 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-5xl mx-auto">
+      <div className="text-center space-y-6">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white">
+          Welcome to BoxApp
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto">
+          The complete multi-tenant SaaS platform for CrossFit gym management. Track members, program WODs, manage competitions, and scale your box.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center pt-4">
+          <a 
+            href="/quickstart" 
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-[#FF6B35] font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Get Started
+          </a>
+          <a 
+            href="/features/multi-tenant" 
+            className="inline-flex items-center px-6 py-3 rounded-lg border border-white/30 bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors"
+          >
+            Explore Features
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get your box up and running in minutes
+  </p>
+  
+  <Steps>
+    <Step title="Register your box">
+      Sign up for a BoxApp account and register your CrossFit gym. Choose your unique subdomain and configure your box settings.
+      
+      ```bash
+      https://yourbox.boxapp.com
+      ```
+    </Step>
+    
+    <Step title="Configure your box">
+      Set up your box profile, add coaches, and customize your branding. Configure subscription plans and class schedules.
+      
+      <Note>
+        You can customize your box's theme, colors, logo, and favicon from the Settings page.
+      </Note>
+    </Step>
+    
+    <Step title="Add members">
+      Import existing members or invite new athletes to join your box. Assign roles and set up membership plans.
+      
+      ```typescript
+      // Members are automatically notified via email
+      // You can also use the bulk import feature
+      ```
+    </Step>
+    
+    <Step title="Program your first WOD">
+      Use the WOD Designer to create your first workout. Add movements from the library, set time caps, and publish to your athletes.
+      
+      <Tip>
+        The WOD Designer supports all standard CrossFit workout formats: AMRAP, For Time, EMOM, Tabata, and custom formats.
+      </Tip>
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Explore by feature
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Discover what BoxApp can do for your gym
+  </p>
+  
+  <CardGroup cols={3}>
+    <Card title="Multi-tenant" icon="building" href="/features/multi-tenant">
+      Custom domains, branding, and isolated data for each box
+    </Card>
+    <Card title="Member management" icon="users" href="/features/member-management">
+      Track athletes, leads, and membership status
+    </Card>
+    <Card title="WOD programming" icon="dumbbell" href="/features/wod-programming">
+      Design and schedule workouts with the WOD Designer
+    </Card>
+    <Card title="Scheduling" icon="calendar" href="/features/scheduling">
+      Manage class schedules and member bookings
+    </Card>
+    <Card title="Competitions" icon="trophy" href="/features/competitions">
+      Run competitions with live leaderboards
+    </Card>
+    <Card title="Billing" icon="credit-card" href="/features/billing">
+      Subscription management and payment processing
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Learn by role
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Find documentation for your role
+  </p>
+  
+  <CardGroup cols={3}>
+    <Card title="Admin guide" icon="shield-halved" href="/roles/admin">
+      Full system access and box configuration
+    </Card>
+    <Card title="Coach guide" icon="clipboard-check" href="/roles/coach">
+      WOD programming and athlete management
+    </Card>
+    <Card title="Athlete guide" icon="person-running" href="/roles/athlete">
+      Track workouts and compete with others
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-gray-50 dark:bg-[#1a1d27] p-8 sm:p-12">
+    <div className="text-center space-y-4">
+      <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white">
+        Ready to get started?
+      </h2>
+      <p className="text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Follow our quickstart guide to set up your box in minutes, or explore the technical documentation to understand the architecture.
+      </p>
+      <div className="flex flex-wrap gap-3 justify-center pt-4">
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-6 py-3 rounded-lg bg-[#FF6B35] text-white font-semibold hover:bg-[#E55A2B] transition-colors"
+        >
+          View Quickstart
+        </a>
+        <a 
+          href="/technical/architecture" 
+          className="inline-flex items-center px-6 py-3 rounded-lg border border-gray-300 dark:border-[#27272a] bg-white dark:bg-[#242838] text-gray-900 dark:text-white font-semibold hover:bg-gray-100 dark:hover:bg-[#2a2f42] transition-colors"
+        >
+          Technical Docs
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

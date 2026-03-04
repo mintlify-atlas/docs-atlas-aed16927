@@ -1,0 +1,335 @@
+---
+title: "TenantContext"
+description: "Handle multi-tenant resolution and box configuration in BoxApp"
+---
+
+The `TenantContext` provides multi-tenant resolution at the application root level. It identifies the current box (gym) based on the hostname or query parameter and fetches box configuration before the user session is loaded.
+
+## Provider Setup
+
+Wrap your application with `TenantProvider` at the root level, typically outside or alongside the `AuthProvider`.
+
+```tsx
+import { TenantProvider } from '@/contexts/TenantContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+
+function App() {
+  return (
+    <TenantProvider>
+      <AuthProvider>
+        {/* Your app components */}
+      </AuthProvider>
+    </TenantProvider>
+  );
+}
+```
+
+<Note>
+  The `TenantProvider` should wrap the `AuthProvider` to ensure tenant context is available before authentication is initialized.
+</Note>
+
+## Hook Usage
+
+Access the tenant context using the `useTenant` hook.
+
+```tsx
+import { useTenant } from '@/contexts/TenantContext';
+
+function MyComponent() {
+  const { tenantBox, isTenantSubdomain, isSuspended, isLoading } = useTenant();
+  
+  if (isLoading) {
+    return <div>Loading tenant...</div>;
+  }
+  
+  if (isSuspended) {
+    return <div>This gym's subscription has been suspended</div>;
+  }
+  
+  return (
+    <div>
+      <h1>{tenantBox?.name || 'BoxApp'}</h1>
+      {isTenantSubdomain && <p>Tenant Mode: {tenantBox?.slug}</p>}
+    </div>
+  );
+}
+```
+
+<Note>
+  The `useTenant` hook must be used within a `TenantProvider`. An error will be thrown if used outside the provider tree.
+</Note>
+
+## State Properties
+
+The context exposes the following state properties:
+
+<ResponseField name="tenantSlug" type="string | null">
+  The tenant slug extracted from the hostname (production) or query parameter (development).
+  
+  - Returns a string slug if on a tenant subdomain/route
+  - Returns `null` if not in tenant mode (e.g., main app domain)
+  
+  <Expandable title="Slug Resolution">
+    The slug is determined by the `getTenantSlug()` utility function, which checks:
+    1. Production: Subdomain of the hostname (e.g., `gymname.boxapp.com` → `'gymname'`)
+    2. Development: Query parameter `?tenant=gymname` → `'gymname'`
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="tenantBox" type="BoxRow | null">
+  The full box configuration object fetched from the `boxes` table based on the `tenantSlug`.
+  
+  <Expandable title="BoxRow Type Definition">
+    ```typescript
+    type BoxRow = Database['public']['Tables']['boxes']['Row'];
+    // Includes:
+    // - id: string
+    // - name: string
+    // - slug: string
+    // - subscription_status: string
+    // - created_at: string
+    // - settings: object
+    // - etc.
+    ```
+  </Expandable>
+  
+  Returns `null` if:
+  - Not in tenant mode (`tenantSlug` is `null`)
+  - Box not found in database
+  - Fetch operation failed
+</ResponseField>
+
+<ResponseField name="isTenantSubdomain" type="boolean">
+  Convenience flag indicating whether the app is running in tenant mode.
+  
+  - `true` if `tenantSlug !== null`
+  - `false` if on the main app domain
+</ResponseField>
+
+<ResponseField name="isSuspended" type="boolean">
+  Indicates whether the tenant box's subscription is suspended or cancelled.
+  
+  Returns `true` if `tenantBox.subscription_status` is:
+  - `'suspended'`
+  - `'cancelled'`
+  
+  Use this to gate access to tenant-specific features or show subscription warnings.
+</ResponseField>
+
+<ResponseField name="tenantNotFound" type="boolean">
+  Indicates whether the tenant slug was present but no matching box was found in the database.
+  
+  - `true` if slug exists but box lookup failed
+  - `false` if box found or not in tenant mode
+  
+  Use this to show a "Gym not found" error page.
+</ResponseField>
+
+<ResponseField name="isLoading" type="boolean">
+  Indicates whether the tenant box data is currently being fetched.
+  
+  - `true` during initial box fetch
+  - `false` once fetch completes (success or failure)
+  - Always `false` if not in tenant mode
+</ResponseField>
+
+## Multi-Tenant Architecture
+
+The `TenantContext` enables BoxApp to serve multiple gyms from a single application:
+
+### Tenant Resolution Flow
+
+1. **Extract Slug**: On app initialization, `getTenantSlug()` determines if the current URL represents a tenant.
+2. **Fetch Box**: If a slug is found, an anonymous query to Supabase fetches the box configuration.
+3. **Provide Context**: The box data is made available to all child components.
+
+```tsx
+// Example tenant URLs:
+// Production: https://crossfitdelta.boxapp.com → slug: 'crossfitdelta'
+// Development: http://localhost:3000?tenant=crossfitdelta → slug: 'crossfitdelta'
+// Main app: https://boxapp.com → slug: null
+```
+
+### Anonymous Access
+
+The box fetch is performed **before** authentication is initialized and uses an **anonymous** Supabase query.
+
+<Note>
+  Your Supabase Row Level Security (RLS) policies must allow anonymous reads on the `boxes` table for the `slug` column. This enables public access to box configuration data.
+</Note>
+
+```sql
+-- Example RLS policy for anonymous box reads
+CREATE POLICY "Allow anonymous reads by slug"
+ON boxes FOR SELECT
+USING (true);
+```
+
+## Usage Patterns
+
+### Conditional Rendering Based on Tenant
+
+```tsx
+function Navigation() {
+  const { isTenantSubdomain, tenantBox } = useTenant();
+  
+  return (
+    <nav>
+      {isTenantSubdomain ? (
+        <h1>{tenantBox?.name} Portal</h1>
+      ) : (
+        <h1>BoxApp - Gym Management</h1>
+      )}
+    </nav>
+  );
+}
+```
+
+### Subscription Status Gating
+
+```tsx
+function ProtectedFeature() {
+  const { isSuspended, tenantBox } = useTenant();
+  
+  if (isSuspended) {
+    return (
+      <Alert variant="error">
+        {tenantBox?.name}'s subscription is {tenantBox?.subscription_status}.
+        Please contact support to restore access.
+      </Alert>
+    );
+  }
+  
+  return <FeatureComponent />;
+}
+```
+
+### Tenant Not Found Handling
+
+```tsx
+function App() {
+  const { tenantNotFound, tenantSlug, isLoading } = useTenant();
+  
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+  
+  if (tenantNotFound) {
+    return (
+      <ErrorPage>
+        <h1>Gym Not Found</h1>
+        <p>No gym found with slug: {tenantSlug}</p>
+      </ErrorPage>
+    );
+  }
+  
+  return <MainApp />;
+}
+```
+
+### Loading State Management
+
+```tsx
+function TenantAwareLayout() {
+  const { isLoading, tenantBox } = useTenant();
+  
+  // Wait for tenant resolution before rendering
+  if (isLoading) {
+    return <Skeleton />;
+  }
+  
+  return (
+    <div>
+      <Header gymName={tenantBox?.name} />
+      <Outlet />
+    </div>
+  );
+}
+```
+
+## Integration with AuthContext
+
+The tenant and auth contexts work together for complete multi-tenant authentication:
+
+```tsx
+function App() {
+  const { tenantBox } = useTenant();
+  
+  return (
+    <AuthProvider tenantBoxId={tenantBox?.id}>
+      {/* Auth operations now scoped to this tenant */}
+    </AuthProvider>
+  );
+}
+```
+
+When `tenantBoxId` is passed to `AuthProvider`:
+- New user registrations are automatically associated with this box
+- OAuth flows reconcile the user's box assignment
+- Profile fetching validates box membership
+
+## TypeScript Types
+
+```typescript
+interface TenantContextType {
+  tenantSlug: string | null;
+  tenantBox: BoxRow | null;
+  isTenantSubdomain: boolean;
+  isSuspended: boolean;
+  tenantNotFound: boolean;
+  isLoading: boolean;
+}
+
+type BoxRow = Database['public']['Tables']['boxes']['Row'];
+```
+
+## Implementation Details
+
+<Expandable title="Slug Extraction">
+  The `getTenantSlug()` utility function handles environment-specific slug resolution:
+  
+  **Production**: Extracts subdomain from `window.location.hostname`
+  ```
+  crossfitdelta.boxapp.com → 'crossfitdelta'
+  boxapp.com → null
+  ```
+  
+  **Development**: Reads from query parameter
+  ```
+  localhost:3000?tenant=crossfitdelta → 'crossfitdelta'
+  localhost:3000 → null
+  ```
+</Expandable>
+
+<Expandable title="Box Fetch Logic">
+  The box fetch only occurs if a `tenantSlug` is detected:
+  
+  ```typescript
+  const { data, error } = await supabase
+    .from('boxes')
+    .select('*')
+    .eq('slug', tenantSlug)
+    .single();
+  ```
+  
+  If no slug is present, `isLoading` immediately becomes `false` and no query is made.
+</Expandable>
+
+<Expandable title="Error Handling">
+  The context distinguishes between:
+  - **Not found**: Slug exists but no matching box in database → `tenantNotFound = true`
+  - **Not tenant mode**: No slug detected → `tenantNotFound = false`, `tenantBox = null`
+  - **Fetch error**: Unexpected error during query → `tenantNotFound = true`, logged to console
+</Expandable>
+
+## Best Practices
+
+1. **Provider Order**: Always wrap `AuthProvider` inside `TenantProvider` to ensure tenant context is available first.
+
+2. **Loading States**: Check `isLoading` before rendering tenant-dependent UI to avoid flashing incorrect content.
+
+3. **Error Boundaries**: Wrap tenant-aware routes with error boundaries to gracefully handle `tenantNotFound` scenarios.
+
+4. **Subscription Checks**: Use `isSuspended` to gate access to premium features or show upgrade prompts.
+
+5. **RLS Configuration**: Ensure your Supabase RLS policies allow anonymous reads on the `boxes` table for tenant resolution to work.

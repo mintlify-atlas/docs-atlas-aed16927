@@ -1,0 +1,288 @@
+---
+title: Coach Role
+description: Reference guide for Coach users in BoxApp - manage training sessions and athlete performance
+---
+
+# Coach Role
+
+As a Coach, you focus on delivering great training experiences. You can manage class sessions, review athlete performance, and handle competition programming.
+
+## Core Permissions
+
+Coaches have targeted access to training-related features:
+
+- **Coach Dashboard**: Specialized view for session management and feedback
+- **Member Viewing**: Access to member roster (read-only for most operations)
+- **Programming Access**: View and create WODs for your sessions
+- **Movement Library**: Full access to create and manage movements
+- **Competition Management**: Create and run box competitions
+- **Box Display Access**: Configure the TV view for your classes
+- **Schedule**: View and manage class bookings
+
+<Note>
+Coaches have the `role_id` set to `'coach'` in the profiles table. This role is typically assigned by admins to training staff.
+</Note>
+
+## What You Can Do
+
+### Coach Dashboard
+
+You see the **Coach Command** dashboard with session-focused metrics:
+
+<CardGroup cols={2}>
+  <Card title="Active Classes" icon="calendar">
+    See how many classes you're coaching today and manage your session schedule.
+  </Card>
+  <Card title="New Feedback" icon="message-square">
+    Track pending athlete feedback reviews that require your response.
+  </Card>
+</CardGroup>
+
+The coach dashboard displays:
+- **Coaching Session Control**: Quick overview of your daily responsibilities
+- **Active Classes**: Number of classes assigned to you for today
+- **New Feedback**: Count of pending athlete reviews awaiting your response
+
+This focused view helps you stay on top of your coaching duties without the noise of administrative metrics.
+
+### Member Management (Read Access)
+
+Access the **Members** page to:
+
+- View all athletes and their profiles
+- Search members by name or email
+- Review member attendance history
+- Check athlete performance metrics
+- See membership status and plans
+
+<Tip>
+While you can view member details, certain admin-only controls are hidden from your view. Contact an admin if you need to modify member information.
+</Tip>
+
+### Programming & Workouts
+
+Use the **WODs** page to:
+
+- View daily programming across all tracks
+- Create workouts for your classes
+- Organize programming by track (RX, Scaled, Masters, Teens)
+- Review athlete results and submissions
+- Track workout completion rates
+- Clone successful workouts for future sessions
+- Add scaling options and modifications
+
+You can create and publish WODs to ensure your athletes have clear programming guidance.
+
+### Movement Library Management
+
+Access the **Movements** page to:
+
+- Create new movements in the database
+- Add video demonstrations and descriptions
+- Tag movements by category (gymnastics, weightlifting, monostructural)
+- Set difficulty levels and prerequisites
+- Update movement details and coaching cues
+- Reference movements when creating WODs
+
+This shared library ensures consistent movement names and standards across all coaching staff.
+
+### Competition Management
+
+Use the **Competitions** page to:
+
+- Create box competitions and throwdowns
+- Set up divisions and scoring systems
+- Configure workout formats (AMRAP, For Time, Max Load)
+- Track participant registrations
+- Enter scores and update leaderboards
+- Monitor live competition progress
+- Generate final results and standings
+- Publish results to athletes
+
+<Note>
+Coaches and admins share competition management duties. You can create and run your own events without admin intervention.
+</Note>
+
+### Box Display Configuration
+
+Configure the **Box Display** (TV view) to:
+
+- Show today's WOD to athletes in the gym
+- Display competition leaderboards during events
+- Broadcast class schedules and upcoming sessions
+- Show announcements and gym updates
+- Customize what athletes see before and after class
+
+Perfect for setting up the TV screen in your gym to show relevant information to athletes.
+
+### Schedule Management
+
+Access the **Schedule** page to:
+
+- View all class sessions
+- See your assigned coaching slots
+- Check class attendance and booking status
+- Monitor class capacity
+- View athlete check-ins
+
+### Personal Profile
+
+Manage your **Profile** to:
+
+- Update your bio and coaching credentials
+- Add profile photo
+- Set contact preferences
+- Change password
+- Configure notification settings
+
+## Navigation Access
+
+You can access these navigation items:
+
+- Dashboard (Coach Command view)
+- Schedule (class and session management)
+- Members (view-only access to roster)
+- Programming (create and view WODs)
+- Movements (full management access)
+- Benchmarks (view PRs and records)
+- Competitions (create and manage events)
+- Box Display (configure TV/kiosk view)
+- Settings (limited personal settings)
+- Profile (your coaching profile)
+
+## What You Cannot Do
+
+<Warning>
+Coaches do NOT have access to:
+- **Leads**: Prospect management (admin/receptionist only)
+- **Billing**: Financial operations (admin/receptionist only)
+- **Roles**: User role management (admin only)
+- **Audit Logs**: Security monitoring (admin only)
+- **Analytics**: Business intelligence dashboard (admin only)
+- **Admin Settings**: Box configuration and branding (admin only)
+</Warning>
+
+If you need access to these features, contact your box administrator.
+
+## Common Workflows
+
+### Preparing for Your Class
+
+1. Log in and check your Coach Command dashboard
+2. Review "Active Classes" to see today's schedule
+3. Navigate to Programming page
+4. Create or review the WOD for your session
+5. Check Movement library for demo videos to reference
+6. Configure Box Display to show the WOD
+7. Review class roster in Schedule page
+8. Check for any new athlete feedback requiring response
+
+### Creating a Competition WOD
+
+1. Navigate to Competitions page
+2. Click "Create Competition" or select existing event
+3. Add a new workout to the competition
+4. Set workout format (AMRAP, For Time, etc.)
+5. Select movements from the Movement library
+6. Define scoring system and time cap
+7. Publish workout to competitors
+8. Monitor submissions on the leaderboard
+
+### Managing Athlete Feedback
+
+1. Check "New Feedback" count on your dashboard
+2. Navigate to the feedback section (if available)
+3. Review athlete comments and questions
+4. Respond with coaching cues or form corrections
+5. Mark feedback as addressed
+
+This helps you maintain communication with athletes between sessions.
+
+### Adding a New Movement
+
+1. Navigate to Movements page
+2. Click "Create Movement" button
+3. Enter movement name (e.g., "Thruster", "Muscle-up")
+4. Add detailed description and coaching points
+5. Upload or link demonstration video
+6. Tag category (weightlifting, gymnastics, etc.)
+7. Set difficulty level
+8. Save - now available for use in WOD programming
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Daily Dashboard Check" icon="eye">
+    Start each coaching day by reviewing your Coach Command dashboard for class count and pending feedback.
+  </Card>
+  <Card title="Pre-Class WOD Review" icon="clipboard-check">
+    Always review or create the WOD at least one day in advance to ensure athletes know what to expect.
+  </Card>
+  <Card title="Movement Standards" icon="dumbbell">
+    Use the Movement library to reference proper form and standards when coaching or judging athletes.
+  </Card>
+  <Card title="Responsive Feedback" icon="messages">
+    Reply to athlete feedback within 24-48 hours to maintain engagement and show you care about their progress.
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### Role Identification
+
+The system identifies coaches through the `role_id` field:
+
+```typescript
+const isCoach = userProfile?.role_id === 'coach';
+```
+
+### Dashboard Rendering
+
+Coaches see a specialized dashboard component:
+
+```typescript
+if (userProfile?.role_id === 'coach') {
+  return <CoachDashboard />;
+}
+```
+
+The `CoachDashboard` component fetches:
+- Today's class count from the `sessions` table filtered by `coach_id`
+- Pending feedback from the `functional_feedback` table for your sessions
+
+### Protected Routes
+
+Coach routes are defined with shared access:
+
+```typescript
+<ProtectedRoute allowedRoles={['admin', 'coach']}>
+  <Movements />
+</ProtectedRoute>
+```
+
+Coaches share access with admins on:
+- Members (with admin having additional controls)
+- Movements (full access)
+- Competitions (full access)
+- Box Display (full access)
+
+## Collaboration Tips
+
+### Working with Admins
+
+- **Member Issues**: If an athlete needs account changes, ask an admin to update their profile
+- **Billing Questions**: Direct payment inquiries to admins or receptionists
+- **Role Requests**: If you need additional permissions, request role review from an admin
+
+### Working with Other Coaches
+
+- **Movement Library**: Coordinate with other coaches to maintain consistent movement names and descriptions
+- **Programming**: Review each other's WODs to ensure track consistency (RX vs Scaled difficulty)
+- **Competitions**: Collaborate on event planning and judging assignments
+
+## Related Documentation
+
+- [Admin Role](/roles/admin) - Learn about admin capabilities and when to escalate
+- [Athlete Role](/roles/athlete) - Understand the athlete experience you're supporting
+- [WOD Programming](/features/wod-programming) - Detailed guide to creating and managing WODs
+- [WOD Designer](/guides/wod-designer) - Step-by-step guide to using the WOD Designer

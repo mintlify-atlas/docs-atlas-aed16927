@@ -1,0 +1,534 @@
+---
+title: Hosting Options
+description: Platform-specific deployment instructions for BoxApp
+---
+
+## Overview
+
+BoxApp is a static React application that can be deployed to any hosting platform that supports single-page applications (SPAs). This guide covers the most popular hosting options with step-by-step instructions.
+
+## Vercel (Recommended)
+
+Vercel is the recommended hosting platform for BoxApp due to its seamless integration with Vite and excellent performance.
+
+### Prerequisites
+
+- Vercel account (free tier available)
+- GitHub, GitLab, or Bitbucket repository
+- Completed [Deployment Guide](/technical/deployment) steps
+
+### Deploy to Vercel
+
+<Steps>
+  <Step title="Connect Your Repository">
+    1. Go to [vercel.com](https://vercel.com)
+    2. Click **Add New Project**
+    3. Import your repository
+    4. Select the repository containing BoxApp
+  </Step>
+
+  <Step title="Configure Build Settings">
+    Vercel should auto-detect Vite settings. Verify:
+    
+    - **Framework Preset**: Vite
+    - **Build Command**: `npm run build`
+    - **Output Directory**: `dist`
+    - **Install Command**: `npm install`
+  </Step>
+
+  <Step title="Add Environment Variables">
+    In the **Environment Variables** section, add:
+    
+    ```bash
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=your_production_anon_key
+    ```
+    
+    <Tip>
+      Add these variables for all environments (Production, Preview, Development) or configure them separately per environment.
+    </Tip>
+  </Step>
+
+  <Step title="Deploy">
+    Click **Deploy** and wait for the build to complete. Vercel will:
+    
+    1. Clone your repository
+    2. Install dependencies
+    3. Run the build command
+    4. Deploy to a global CDN
+    5. Provide a production URL
+  </Step>
+</Steps>
+
+### Vercel Configuration File
+
+BoxApp includes a `vercel.json` configuration for SPA routing:
+
+<CodeGroup>
+```json vercel.json
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+</CodeGroup>
+
+This ensures all routes are handled by React Router, allowing direct navigation to any route without 404 errors.
+
+### Custom Domain
+
+<Steps>
+  <Step title="Add Domain in Vercel">
+    1. Go to your project **Settings > Domains**
+    2. Click **Add**
+    3. Enter your domain name
+  </Step>
+
+  <Step title="Configure DNS">
+    Add the following DNS records at your domain registrar:
+    
+    ```
+    Type: A
+    Name: @
+    Value: 76.76.21.21
+    
+    Type: CNAME
+    Name: www
+    Value: cname.vercel-dns.com
+    ```
+    
+    Or use Vercel's nameservers for easier management.
+  </Step>
+
+  <Step title="Update Supabase Redirect URLs">
+    In your Supabase dashboard, add your custom domain to **Authentication > URL Configuration > Redirect URLs**:
+    
+    ```
+    https://yourdomain.com/**
+    ```
+  </Step>
+</Steps>
+
+### Continuous Deployment
+
+Vercel automatically deploys when you push to your repository:
+
+- **Production**: Pushes to `main` branch
+- **Preview**: Pull requests and other branches
+- **Rollback**: One-click rollback to previous deployments
+
+<Note>
+  Each pull request gets a unique preview URL for testing before merging.
+</Note>
+
+## Netlify
+
+Netlify is another excellent option with similar features to Vercel.
+
+### Deploy to Netlify
+
+<Steps>
+  <Step title="Connect Repository">
+    1. Log in to [netlify.com](https://netlify.com)
+    2. Click **Add new site > Import an existing project**
+    3. Connect to your Git provider
+    4. Select your repository
+  </Step>
+
+  <Step title="Configure Build Settings">
+    Set the following build configuration:
+    
+    - **Base directory**: (leave empty)
+    - **Build command**: `npm run build`
+    - **Publish directory**: `dist`
+  </Step>
+
+  <Step title="Add Environment Variables">
+    Under **Site settings > Environment variables**, add:
+    
+    ```bash
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=your_production_anon_key
+    ```
+  </Step>
+
+  <Step title="Configure Redirects">
+    Create a `netlify.toml` file in your project root:
+    
+    ```toml netlify.toml
+    [[redirects]]
+      from = "/*"
+      to = "/index.html"
+      status = 200
+    ```
+    
+    This handles SPA routing for all paths.
+  </Step>
+
+  <Step title="Deploy">
+    Click **Deploy site** to start the first deployment.
+  </Step>
+</Steps>
+
+### Netlify Features
+
+- **Forms**: Built-in form handling (can integrate with BoxApp lead forms)
+- **Functions**: Serverless functions for backend logic
+- **Split Testing**: A/B testing capabilities
+- **Analytics**: Built-in analytics (paid feature)
+
+## Cloudflare Pages
+
+Cloudflare Pages offers excellent performance with their global CDN.
+
+### Deploy to Cloudflare Pages
+
+<Steps>
+  <Step title="Create Pages Project">
+    1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com)
+    2. Go to **Pages**
+    3. Click **Create a project**
+    4. Connect your Git repository
+  </Step>
+
+  <Step title="Configure Build">
+    Set build configuration:
+    
+    - **Framework preset**: None (or Vite if available)
+    - **Build command**: `npm run build`
+    - **Build output directory**: `dist`
+  </Step>
+
+  <Step title="Add Environment Variables">
+    In **Settings > Environment variables**:
+    
+    ```bash
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=your_production_anon_key
+    ```
+  </Step>
+
+  <Step title="Configure SPA Routing">
+    Create a `_redirects` file in your `public/` folder:
+    
+    ```
+    /* /index.html 200
+    ```
+    
+    This file will be copied to `dist/` during build.
+  </Step>
+</Steps>
+
+### Cloudflare Advantages
+
+- Unlimited bandwidth (on free tier)
+- Global CDN with excellent performance
+- Built-in DDoS protection
+- Web Analytics (free)
+
+## AWS Amplify
+
+Deploy to AWS Amplify for integration with other AWS services.
+
+### Deploy to AWS Amplify
+
+<Steps>
+  <Step title="Create Amplify App">
+    1. Open [AWS Amplify Console](https://console.aws.amazon.com/amplify)
+    2. Click **New app > Host web app**
+    3. Connect your repository
+  </Step>
+
+  <Step title="Configure Build Settings">
+    Amplify will auto-detect the framework. The build spec:
+    
+    ```yaml amplify.yml
+    version: 1
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+    ```
+  </Step>
+
+  <Step title="Add Environment Variables">
+    In **App settings > Environment variables**:
+    
+    ```bash
+    VITE_SUPABASE_URL=https://your-project.supabase.co
+    VITE_SUPABASE_ANON_KEY=your_production_anon_key
+    ```
+  </Step>
+
+  <Step title="Configure Rewrites">
+    In **App settings > Rewrites and redirects**, add:
+    
+    - **Source**: `</^[^.]+$|.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|ttf|map|json)$)([^.]+$)/>`
+    - **Target**: `/index.html`
+    - **Type**: `200 (Rewrite)`
+  </Step>
+</Steps>
+
+## Self-Hosted Options
+
+### Docker Deployment
+
+Create a `Dockerfile` for containerized deployment:
+
+<CodeGroup>
+```dockerfile Dockerfile
+# Build stage
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+```nginx nginx.conf
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+</CodeGroup>
+
+Build and run:
+
+```bash
+docker build \
+  --build-arg VITE_SUPABASE_URL=https://your-project.supabase.co \
+  --build-arg VITE_SUPABASE_ANON_KEY=your_key \
+  -t boxapp .
+
+docker run -p 80:80 boxapp
+```
+
+### Traditional Web Server
+
+Deploy to Apache or Nginx:
+
+<Steps>
+  <Step title="Build the Application">
+    ```bash
+    npm run build
+    ```
+  </Step>
+
+  <Step title="Upload Files">
+    Upload the contents of `dist/` to your web server's document root.
+  </Step>
+
+  <Step title="Configure Server">
+    For **Nginx**, add to your site configuration:
+    
+    ```nginx
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    ```
+    
+    For **Apache**, create `.htaccess` in your document root:
+    
+    ```apache
+    <IfModule mod_rewrite.c>
+      RewriteEngine On
+      RewriteBase /
+      RewriteRule ^index\.html$ - [L]
+      RewriteCond %{REQUEST_FILENAME} !-f
+      RewriteCond %{REQUEST_FILENAME} !-d
+      RewriteRule . /index.html [L]
+    </IfModule>
+    ```
+  </Step>
+</Steps>
+
+## Performance Optimization
+
+### CDN Configuration
+
+All major hosting platforms include CDN by default, but you can optimize further:
+
+1. **Enable HTTP/2**: Improves load time for multiple assets
+2. **Enable compression**: Gzip or Brotli for text assets
+3. **Set cache headers**: Cache static assets for 1 year
+4. **Use asset hashing**: Vite does this automatically
+
+### Build Optimizations
+
+Optimize your build for production:
+
+```typescript vite.config.ts
+export default defineConfig({
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          supabase: ['@supabase/supabase-js']
+        }
+      }
+    }
+  }
+})
+```
+
+## Monitoring
+
+### Analytics
+
+Add analytics to track usage:
+
+- **Vercel Analytics**: Built-in Web Vitals tracking
+- **Google Analytics**: Traditional analytics
+- **Plausible/Fathom**: Privacy-friendly alternatives
+
+### Error Tracking
+
+Integrate error tracking:
+
+- **Sentry**: Comprehensive error tracking
+- **LogRocket**: Session replay and error tracking
+- **Rollbar**: Real-time error monitoring
+
+### Uptime Monitoring
+
+- **Vercel/Netlify**: Built-in uptime monitoring
+- **UptimeRobot**: Free uptime monitoring
+- **Pingdom**: Advanced monitoring with alerts
+
+## Security Considerations
+
+<Warning>
+  Always serve your application over HTTPS. All recommended platforms provide free SSL certificates automatically.
+</Warning>
+
+### Security Headers
+
+Most platforms allow custom headers. Add these for enhanced security:
+
+```json vercel.json
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Environment Security
+
+- Never commit `.env` files
+- Use platform environment variable management
+- Rotate keys regularly
+- Use different keys for staging and production
+
+## Troubleshooting
+
+### 404 Errors on Route Refresh
+
+If you get 404 errors when refreshing on non-root routes:
+
+1. Verify your rewrite/redirect configuration
+2. Check that `vercel.json` or equivalent is in your repository root
+3. Ensure the configuration is deployed (check build logs)
+
+### Build Failures
+
+Common build issues:
+
+```bash
+# Clear cache and rebuild
+rm -rf node_modules dist
+npm install
+npm run build
+
+# Check Node version
+node --version  # Should be 18+
+```
+
+### Environment Variables Not Working
+
+1. Verify variables are prefixed with `VITE_`
+2. Redeploy after adding/changing variables
+3. Check build logs for variable values (they'll be visible in the build)
+
+### Slow Initial Load
+
+1. Enable code splitting
+2. Lazy load routes and components
+3. Optimize images (use WebP, proper sizing)
+4. Remove unused dependencies
+5. Analyze bundle with `vite-bundle-visualizer`
+
+## Next Steps
+
+- [Deployment Guide](/technical/deployment) - Complete deployment process
+- [Supabase Setup](/technical/supabase-setup) - Configure your backend
+- [Environment Variables](/technical/environment-variables) - Configure your environment

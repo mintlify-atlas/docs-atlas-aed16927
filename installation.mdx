@@ -1,0 +1,464 @@
+---
+title: Installation & Setup
+description: Complete installation guide for BoxApp. Set up your development environment, configure Supabase, and deploy your CrossFit gym management platform.
+---
+
+## Overview
+
+BoxApp is built with modern web technologies and requires minimal setup to get started. This guide covers both local development and production deployment.
+
+<Note>
+  **Tech Stack**: React 18 + TypeScript, Vite, Supabase (PostgreSQL + Auth), TailwindCSS, Radix UI
+</Note>
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- **Node.js** 18+ and npm
+- **Supabase Account** (free tier works)
+- **Git** for version control
+- A code editor (VS Code recommended)
+
+## Environment Setup
+
+<Steps>
+  <Step title="Clone or Initialize Project">
+    If you have the source code:
+
+    ```bash
+    cd ~/workspace/source/
+    npm install
+    ```
+
+    This will install all required dependencies:
+
+    <Accordion title="Key Dependencies">
+      ```json
+      {
+        "@supabase/supabase-js": "^2.94.0",
+        "react": "^18.2.0",
+        "react-router-dom": "^7.13.0",
+        "@radix-ui/react-*": "Various UI components",
+        "tailwindcss": "^3.4.19",
+        "vite": "^4.4.5"
+      }
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create a `.env` file in the project root:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Update the file with your Supabase credentials:
+
+    ```bash .env
+    VITE_SUPABASE_URL=your_supabase_url
+    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+    ```
+
+    <Warning>
+      **Never commit your `.env` file to version control.** The `.env.example` file is provided as a template only.
+    </Warning>
+
+    <Accordion title="Where to find Supabase credentials">
+      1. Go to [supabase.com](https://supabase.com)
+      2. Open your project dashboard
+      3. Navigate to Settings > API
+      4. Copy your **Project URL** and **anon/public key**
+    </Accordion>
+  </Step>
+
+  <Step title="Set Up Supabase Database">
+    BoxApp requires several database tables. Run the migrations:
+
+    ```bash
+    npm run db:migrate
+    ```
+
+    This executes: `npx supabase db push`
+
+    <Note>
+      The migration creates the following core tables:
+      - `boxes` - Box/gym records
+      - `profiles` - User profiles and roles
+      - `wods` - Daily workout programming
+      - `bookings` - Class reservations
+      - `leads` - Prospective member tracking
+      - `results` - Workout results and PRs
+      - `movements` - Exercise library
+      - `benchmarks` - Standard CrossFit benchmarks
+    </Note>
+  </Step>
+
+  <Step title="Initialize Supabase Client">
+    The Supabase client is configured in `src/lib/supabaseClient.ts:1`:
+
+    ```typescript
+    import { createClient } from '@supabase/supabase-js';
+    import { Database } from '@/types/supabase';
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    export const supabase = createClient<Database>(
+      supabaseUrl || '', 
+      supabaseAnonKey || ''
+    );
+    ```
+
+    <Tip>
+      The client automatically validates credentials on startup and logs connection status to the console.
+    </Tip>
+  </Step>
+</Steps>
+
+## Development Server
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+This command:
+1. Runs `predev` script (attempts database migration)
+2. Starts Vite dev server on `http://localhost:5173`
+3. Enables Hot Module Replacement (HMR)
+
+<Note>
+  The `predev` script runs `npm run db:migrate || true`, which attempts to push database changes before starting the server. The `|| true` ensures the dev server starts even if migrations fail.
+</Note>
+
+## Authentication Setup
+
+BoxApp uses Supabase Auth with custom flows:
+
+### Email/Password Authentication
+
+Implemented in `src/pages/Login.tsx:70`:
+
+```typescript
+const handleAuth = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  const { data, error } = isSignUp
+    ? await signUp({
+        email,
+        password,
+        options: {
+          data: {
+            box_id: tenantBox?.id,
+            box_slug: tenantBox?.slug,
+          }
+        }
+      })
+    : await signIn({ email, password });
+};
+```
+
+### Google OAuth
+
+Configured in `src/pages/Login.tsx:151`:
+
+```typescript
+const handleGoogleSignIn = async () => {
+  const { error } = await signInWithGoogle(tenantBox?.id);
+  // Redirects to Google OAuth, then back to callback
+};
+```
+
+<Accordion title="Configure Google OAuth in Supabase">
+  1. Go to Supabase Dashboard > Authentication > Providers
+  2. Enable Google provider
+  3. Add your Google OAuth credentials (Client ID & Secret)
+  4. Configure redirect URLs:
+     - Development: `http://localhost:5173/auth/callback`
+     - Production: `https://your-domain.com/auth/callback`
+</Accordion>
+
+### Multi-Tenancy
+
+BoxApp supports multiple boxes (gyms) on a single platform:
+
+<CodeGroup>
+```tsx Production (Subdomain)
+// Each box gets a unique subdomain
+your-box.boxora.website
+```
+
+```tsx Local Development (Query Parameter)
+// Local uses query parameter for tenant
+http://localhost:5173?box=your-slug
+```
+</CodeGroup>
+
+Tenant detection is handled by `TenantContext` and `buildTenantUrl` utility.
+
+## Box Registration Flow
+
+New boxes register through `src/pages/RegisterBox.tsx:289`:
+
+<Steps>
+  <Step title="Step 1: Box Information">
+    User provides:
+    - Box name
+    - Unique slug (validated in real-time)
+    - Country
+
+    ```typescript
+    // Real-time slug availability check
+    const { data, error } = await supabase
+      .from('boxes')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    setSlugAvailable(!data);
+    ```
+  </Step>
+
+  <Step title="Step 2: Admin Account">
+    User creates admin credentials (email + password, min 8 chars)
+  </Step>
+
+  <Step title="Step 3: Database Creation">
+    ```typescript
+    // 1. Create box record
+    const { data: newBox } = await supabase
+      .from('boxes')
+      .insert({
+        name: boxName,
+        slug,
+        country,
+        subscription_status: 'trial'
+      });
+
+    // 2. Create admin user
+    await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          box_id: newBoxId,
+          role_id: 'admin'
+        }
+      }
+    });
+
+    // 3. Redirect to box dashboard
+    window.location.href = buildTenantUrl(slug);
+    ```
+
+    <Warning>
+      If user creation fails, the box record is automatically rolled back to maintain data integrity.
+    </Warning>
+  </Step>
+</Steps>
+
+## Building for Production
+
+Compile the application:
+
+```bash
+npm run build
+```
+
+This runs:
+1. TypeScript compiler (`tsc`) - Type checking
+2. Vite build - Optimized production bundle
+
+Output directory: `dist/`
+
+<Accordion title="Build Configuration">
+  ```json package.json
+  {
+    "scripts": {
+      "build": "tsc && vite build",
+      "preview": "vite preview"
+    }
+  }
+  ```
+
+  Preview the production build locally:
+  ```bash
+  npm run preview
+  ```
+</Accordion>
+
+## Deployment Options
+
+### Option 1: Vercel (Recommended)
+
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+```
+
+<Accordion title="Environment Variables">
+  Add to Vercel project settings:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+</Accordion>
+
+### Option 2: Netlify
+
+```bash
+# Install Netlify CLI
+npm i -g netlify-cli
+
+# Deploy
+netlify deploy --prod
+```
+
+### Option 3: Docker
+
+Create a `Dockerfile`:
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+CMD ["npm", "run", "preview"]
+```
+
+## Database Schema
+
+Core tables structure:
+
+<CodeGroup>
+```sql boxes
+CREATE TABLE boxes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  country TEXT,
+  subscription_status TEXT DEFAULT 'trial',
+  logo_url TEXT,
+  login_background_url TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+```sql profiles
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users,
+  box_id UUID REFERENCES boxes(id),
+  role_id TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  force_password_change BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+```sql wods
+CREATE TABLE wods (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  box_id UUID REFERENCES boxes(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  date DATE NOT NULL,
+  track TEXT DEFAULT 'RX',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+</CodeGroup>
+
+## Security Configuration
+
+<Warning>
+  **Critical Security Settings** - Ensure these are configured in Supabase:
+</Warning>
+
+### Row Level Security (RLS)
+
+Enable RLS on all tables:
+
+```sql
+ALTER TABLE boxes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wods ENABLE ROW LEVEL SECURITY;
+```
+
+### Auth Policies
+
+Example policy for box isolation:
+
+```sql
+CREATE POLICY "Users can only access their box data"
+ON profiles
+FOR ALL
+USING (box_id IN (
+  SELECT box_id FROM profiles WHERE id = auth.uid()
+));
+```
+
+## Troubleshooting
+
+<Accordion title="Supabase Connection Errors">
+  Check console output for:
+  ```
+  [Supabase] Client initialized with URL: https://xxx.supabase.co
+  [Supabase] Anon key prefix: eyJhbGciO...
+  ```
+
+  If missing:
+  1. Verify `.env` file exists
+  2. Restart dev server
+  3. Check Supabase project status
+</Accordion>
+
+<Accordion title="Database Migration Failures">
+  ```bash
+  # Manually push migrations
+  npx supabase db push
+
+  # Reset and re-migrate
+  npx supabase db reset
+  ```
+</Accordion>
+
+<Accordion title="Build Errors">
+  ```bash
+  # Clear cache and rebuild
+  rm -rf node_modules dist .vite
+  npm install
+  npm run build
+  ```
+</Accordion>
+
+<Accordion title="Authentication Issues">
+  - Verify email confirmation is disabled in Supabase (or check email)
+  - Check Auth policies in Supabase Dashboard
+  - Ensure redirect URLs are configured
+  - Validate JWT secret configuration
+</Accordion>
+
+## Next Steps
+
+Now that BoxApp is installed:
+
+1. Follow the [Quick Start Guide](/quickstart) to register your first box
+2. Configure multi-tenancy for production
+3. Set up custom domain (if not using boxora.website)
+4. Configure email templates in Supabase
+5. Set up backup and monitoring
+
+<Tip>
+  For questions about the codebase structure, check the main components:
+  - `src/contexts/AuthContext.tsx` - Authentication logic
+  - `src/contexts/TenantContext.tsx` - Multi-tenant handling
+  - `src/pages/Dashboard.tsx:30` - Role-based dashboards
+  - `src/pages/RegisterBox.tsx:223` - Box registration flow
+</Tip>

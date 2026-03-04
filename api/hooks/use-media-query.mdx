@@ -1,0 +1,172 @@
+---
+title: useMediaQuery
+description: React hook for responsive design with CSS media queries in BoxApp
+---
+
+# useMediaQuery
+
+The `useMediaQuery` hook allows you to reactively track CSS media query matches, enabling responsive behavior in your React components.
+
+## Import
+
+```typescript
+import { useMediaQuery, useIsMobile } from '@/hooks';
+```
+
+## Signature
+
+```typescript
+const matches = useMediaQuery(query: string): boolean
+```
+
+## Parameters
+
+<ParamField path="query" type="string" required>
+  A valid CSS media query string to match against.
+  
+  Examples:
+  - `"(min-width: 768px)"`
+  - `"(max-width: 1024px)"`
+  - `"(prefers-color-scheme: dark)"`
+</ParamField>
+
+## Return Value
+
+<ResponseField name="matches" type="boolean" required>
+  Returns `true` if the media query currently matches, `false` otherwise. Updates reactively when the match status changes.
+</ResponseField>
+
+## Usage
+
+### Basic Media Query
+
+```tsx
+import { useMediaQuery } from '@/hooks';
+
+function ResponsiveComponent() {
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  
+  return (
+    <div>
+      {isDesktop ? (
+        <DesktopLayout />
+      ) : (
+        <MobileLayout />
+      )}
+    </div>
+  );
+}
+```
+
+### Tablet Detection
+
+```tsx
+import { useMediaQuery } from '@/hooks';
+
+function Layout() {
+  const isTablet = useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
+  
+  return (
+    <div className={isTablet ? 'tablet-layout' : 'default-layout'}>
+      {/* Content */}
+    </div>
+  );
+}
+```
+
+### Dark Mode Detection
+
+```tsx
+import { useMediaQuery } from '@/hooks';
+
+function ThemeProvider({ children }) {
+  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+  
+  return (
+    <div className={prefersDark ? 'dark-theme' : 'light-theme'}>
+      {children}
+    </div>
+  );
+}
+```
+
+### Responsive Navigation
+
+```tsx
+import { useMediaQuery } from '@/hooks';
+
+function Navigation() {
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  
+  return isMobile ? <MobileMenu /> : <DesktopMenu />;
+}
+```
+
+## useIsMobile Helper
+
+A convenience hook that returns `true` when the viewport is below tablet size (< 768px).
+
+### Signature
+
+```typescript
+const isMobile = useIsMobile(): boolean
+```
+
+### Usage
+
+```tsx
+import { useIsMobile } from '@/hooks';
+
+function AdaptiveButton() {
+  const isMobile = useIsMobile();
+  
+  return (
+    <button className={isMobile ? 'btn-mobile' : 'btn-desktop'}>
+      {isMobile ? 'Tap' : 'Click'} Here
+    </button>
+  );
+}
+```
+
+### Conditional Rendering
+
+```tsx
+import { useIsMobile } from '@/hooks';
+
+function Dashboard() {
+  const isMobile = useIsMobile();
+  
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      {!isMobile && <Sidebar />}
+      <MainContent />
+    </div>
+  );
+}
+```
+
+## Common Breakpoints
+
+Here are standard breakpoints you can use with `useMediaQuery`:
+
+- **Mobile**: `(max-width: 767px)`
+- **Tablet**: `(min-width: 768px)` and `(max-width: 1023px)`
+- **Desktop**: `(min-width: 1024px)`
+- **Large Desktop**: `(min-width: 1280px)`
+
+<Note>
+  The hook automatically handles cleanup and updates when the query match changes. It uses the native `window.matchMedia` API for optimal performance.
+</Note>
+
+## Best Practices
+
+1. **Use Semantic Breakpoints**: Define breakpoints based on your content needs, not specific devices
+2. **Prefer CSS When Possible**: Use CSS media queries for styling; use this hook when you need conditional logic or component swapping
+3. **Avoid Excessive Queries**: Minimize the number of different media queries to reduce re-renders
+4. **Consider SSR**: This hook returns `false` during server-side rendering since `window` is not available
+
+## Related
+
+- [Responsive Design Guide](/guides/responsive-design)
+- [useIsMobile Helper](/api/hooks/use-media-query#useismobile-helper)

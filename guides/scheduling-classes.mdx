@@ -1,0 +1,359 @@
+---
+title: Scheduling Classes
+description: Manage your box's weekly schedule and assign programming to sessions
+---
+
+# Scheduling Classes
+
+The Schedule page is your command center for managing class sessions, viewing programming, and tracking athlete attendance. This guide covers everything you need to run an efficient schedule.
+
+## Overview
+
+BoxApp's Schedule view displays a Monday-Saturday weekly grid showing:
+- Class sessions with times and coaches
+- Assigned WOD programming by track
+- Attendance indicators
+- Today's classes highlighted
+
+## Understanding the Schedule Interface
+
+### Weekly Navigation
+
+At the top of the schedule:
+
+<Steps>
+  <Step title="Week Selector">
+    The date range display shows the current week:
+    - Format: "Jan 6 - Jan 11" (Monday to Saturday)
+    - Left/Right arrows navigate to previous/next weeks
+    - Displays in a compact, mobile-friendly format
+  </Step>
+
+  <Step title="Quick Actions">
+    - **TODAY Button**: Jump instantly to the current week
+    - **Program Button**: Opens the programming viewer to assign WODs
+  </Step>
+</Steps>
+
+<Note>
+  BoxApp schedules run Monday through Saturday (6 days). Sunday is intentionally excluded as most CrossFit boxes take this as a rest day.
+</Note>
+
+### Day View Options
+
+**Desktop**: All 6 days displayed side-by-side in columns  
+**Mobile**: Swipeable day selector showing one day at a time
+
+#### Mobile Day Pills
+
+On small screens, you'll see:
+- Pill-shaped buttons for each day
+- Current selection highlighted in primary color
+- Today marked with special styling
+- Dots indicate days with sessions or programming
+- Horizontal scroll with active day centered
+
+## Working with Sessions
+
+### Session Card Information
+
+Each session displays:
+
+| Element | Description |
+|---------|-------------|
+| **Time** | Start time (e.g., "6:00 AM", "17:30") |
+| **Session Type** | Badge showing category (CrossFit, Weightlifting, etc.) |
+| **Title** | Session name or type name |
+| **Color Indicator** | Left border matches session type color |
+| **Coach Name** | Assigned coach's first and last name |
+| **Programmed WOD** | If assigned, shows WOD title with trophy icon |
+
+<Tip>
+  Sessions are automatically sorted by start time, so your earliest classes appear first.
+</Tip>
+
+### Viewing Session Details
+
+Click any session card to view full details (feature in development).
+
+### Athlete View vs Admin View
+
+**Athletes see**:
+- Session information
+- Assigned programming
+- "Give Feedback" button for post-class surveys
+
+**Admins/Coaches see**:
+- All athlete features plus:
+- Programming management tools
+- Session editing capabilities
+- Assignment controls
+
+## Managing Programming
+
+### Programming Viewer
+
+Click the "PROGRAMMING VIEWER" button to open the assignment interface.
+
+<Steps>
+  <Step title="Select Target Date">
+    At the top of the viewer, click any day of the week. The selected day highlights in your primary color.
+
+    The day selector shows:
+    - Day abbreviation (MON, TUE, etc.)
+    - Date number
+    - Indicator dot if programming exists
+  </Step>
+
+  <Step title="View Track Cards">
+    The viewer displays four track columns:
+
+    - **CrossFit Track**: General class programming
+    - **Novice Track**: Beginner-friendly modifications
+    - **Bodybuilding Track**: Hypertrophy-focused work
+    - **Engine Track**: Conditioning emphasis
+
+    Each track card shows:
+    - Track name
+    - Status badge (ACTIVE if WOD assigned, WAIT if empty)
+    - Current WOD title (if assigned)
+    - Action buttons
+  </Step>
+
+  <Step title="Assign Programming">
+    For tracks without programming:
+
+    1. Click "Assign Existing" button
+    2. Select from your recent WODs (last 10 created)
+    3. Click a WOD to assign it to that track and date
+    4. The WOD now appears in the track card
+
+    <Warning>
+      Assigning a WOD links it to both the specific date AND track. The same WOD can be assigned to multiple tracks or dates.
+    </Warning>
+  </Step>
+
+  <Step title="Change or Remove Programming">
+    For tracks with assigned WODs:
+
+    - **View Details**: Click "View Workout →" to see full WOD
+    - **Reassign**: Click refresh icon to choose a different WOD
+    - **Remove**: Click trash icon, then confirm removal
+
+    Removing a WOD unlinks it from that date/track but doesn't delete it from your library.
+  </Step>
+</Steps>
+
+### WOD Assignment Dialog
+
+When assigning existing programming:
+
+```
+Recent WODs List:
+- Shows last 10 created WODs
+- Displays title, date created, and track
+- Click any WOD to assign
+- Automatically closes on selection
+```
+
+<Tip>
+  Plan your programming in advance by creating WODs first, then use the quick assignment flow to schedule them across your calendar.
+</Tip>
+
+## Daily Programming Display
+
+### Programming Summary Card
+
+Each day with assigned WODs shows a "Daily Programming" summary at the top:
+
+- Lists all tracks programmed that day (up to 3 shown)
+- Click any listed WOD to view details
+- Trophy icon indicates professional programming
+
+### Session-WOD Matching
+
+BoxApp automatically matches sessions with appropriate programming:
+
+**Matching Logic**:
+1. Session date must match WOD date
+2. Session type name must contain the track name
+   - "CrossFit Class" matches "CrossFit" track
+   - "Functional Fitness" matches "CrossFit" track
+   - "Weightlifting" matches its own track
+
+When matched, the WOD appears directly in the session card with a "Programmed" badge.
+
+## Viewing WOD Details
+
+### WOD Detail Modal
+
+Click any WOD title to open the detail view:
+
+<Steps>
+  <Step title="Header Information">
+    - **Track Badge**: Which track this WOD belongs to
+    - **Date Badge**: When it's scheduled
+    - **Title**: Large, bold workout name
+    - Background gradient with trophy watermark
+  </Step>
+
+  <Step title="Workout Structure">
+    If the WOD has structured blocks (from WOD Designer):
+
+    Each block displays:
+    - Block title (e.g., "Warmup", "Metcon")
+    - Movement list with:
+      - Movement name (bold, uppercase)
+      - Reps/time + weight prescription
+      - Notes for scaling or technique
+  </Step>
+
+  <Step title="Text Format">
+    If the WOD was created as plain text:
+
+    - Shows in monospace font
+    - Preserves line breaks and formatting
+    - Useful for copy-paste from external sources
+  </Step>
+
+  <Step title="Stimulus & Scaling">
+    At the bottom:
+
+    - **Target Stimulus**: What energy system or time domain
+    - **General Scaling**: Overall modifications available
+    - **Level-Specific Scaling**:
+      - Beginner (green)
+      - Intermediate (orange)
+      - Advanced (blue)
+  </Step>
+
+  <Step title="Modalities">
+    Tags showing workout components:
+    - Gymnastics, Weightlifting, Monostructural, etc.
+    - Helps athletes understand what to expect
+  </Step>
+</Steps>
+
+## Session Feedback (Athlete Feature)
+
+### Post-Class Survey
+
+Athletes can submit feedback after attending sessions:
+
+1. Click "Feedback" button on any session card
+2. Rate on multiple scales:
+   - **Effort**: 1-10 (how hard you worked)
+   - **Fatigue**: 1-5 (how tired you feel)
+   - **Satisfaction**: Emoji selector (😀 to 😰)
+   - **Note**: Free text for comments
+3. Submit feedback
+
+Coaches receive this data for programming adjustments.
+
+## Empty States
+
+### No Sessions Scheduled
+
+Days without sessions show:
+- Large calendar icon
+- "No Activity" text
+- Faded styling
+
+### No Programming Assigned
+
+Tracks without WODs show:
+- "No programming" placeholder
+- "Assign Existing" button
+- Dashed border
+
+<Note>
+  Empty states are opportunities! Use them to identify gaps in your schedule or programming coverage.
+</Note>
+
+## Advanced Features
+
+### Track-Based Programming
+
+**Why multiple tracks?**
+
+Different athletes have different goals:
+- **CrossFit**: Sport-specific training
+- **Novice**: Learning fundamental movements
+- **Bodybuilding**: Aesthetic and muscle-building focus
+- **Engine**: Pure conditioning capacity
+
+You can run parallel programming and let athletes choose their track.
+
+### Week-at-a-Glance Planning
+
+Use the Schedule view to:
+- Spot programming holes
+- Balance movement patterns across the week
+- Ensure coach coverage for all sessions
+- Monitor session distribution by type
+
+<Tip>
+  A well-balanced week typically includes: 3-4 mixed modal days, 1-2 strength emphasis days, 1 engine day, and 1 recovery/skill day.
+</Tip>
+
+## Mobile Optimization
+
+### Touch Interactions
+
+- **Day Pills**: Large tap targets (52px min height)
+- **Session Cards**: Active state scaling on tap
+- **Programming Buttons**: Full-width on mobile
+- **Modal Views**: Full-screen takeover for better reading
+
+### Horizontal Scroll
+
+The day selector automatically:
+- Centers the selected day
+- Smooth scrolls on selection
+- Maintains scroll position when navigating weeks
+
+## Troubleshooting
+
+<Accordion title="WOD doesn't appear in session card">
+  Check that:
+  1. WOD date matches session date exactly
+  2. Session type name contains the track name
+  3. Track name in WOD matches expected format ("CrossFit", "Novice", etc.)
+  
+  The matching is case-insensitive but requires partial string match.
+</Accordion>
+
+<Accordion title="Can't see programming button">
+  The programming viewer is available to all users, but assignment features require admin or coach permissions. Check your role in the system.
+</Accordion>
+
+<Accordion title="Sessions not appearing">
+  Verify:
+  - Sessions are assigned to your current box_id
+  - Start times fall within the displayed week range
+  - You're viewing the correct week (check the date range at top)
+</Accordion>
+
+## Best Practices
+
+### Scheduling Workflow
+
+1. **Create Sessions First**: Build your weekly class schedule
+2. **Design Programming**: Use WOD Designer to create workouts
+3. **Assign to Tracks**: Link WODs to appropriate dates and tracks
+4. **Review Coverage**: Check that all sessions have programming
+5. **Publish**: Athletes see assignments immediately
+
+### Coach Assignment
+
+Always assign a coach to sessions:
+- Provides accountability
+- Athletes know who to contact
+- Enables coach-specific analytics
+
+### Programming in Advance
+
+Schedule programming at least:
+- **1 week ahead**: Minimum for athlete planning
+- **2-4 weeks ahead**: Optimal for training cycles
+- **8-12 weeks ahead**: Best for competition preparation

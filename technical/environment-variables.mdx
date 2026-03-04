@@ -1,0 +1,252 @@
+---
+title: Environment Variables
+description: Complete reference for configuring environment variables in BoxApp
+---
+
+## Overview
+
+BoxApp uses environment variables to configure the connection to Supabase and other runtime settings. All environment variables are prefixed with `VITE_` to make them available in the browser through Vite's build process.
+
+<Warning>
+Never commit your `.env` file to version control. It contains sensitive credentials that should remain private.
+</Warning>
+
+## Configuration File
+
+Environment variables are stored in a `.env` file in the project root:
+
+```bash .env.example
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+## Required Variables
+
+<ParamField path="VITE_SUPABASE_URL" type="string" required>
+  The URL of your Supabase project. This is the base endpoint for all API requests.
+
+  **Format:** `https://your-project-id.supabase.co`
+
+  **Local development:** `http://localhost:54321` (when using Supabase local development)
+
+  **Example:**
+  ```
+  VITE_SUPABASE_URL=https://xyzcompany.supabase.co
+  ```
+</ParamField>
+
+<ParamField path="VITE_SUPABASE_ANON_KEY" type="string" required>
+  The anonymous (public) API key for your Supabase project. This key is safe to use in browser code as it respects Row Level Security policies.
+
+  **Format:** Long JWT token string (starts with `eyJ...`)
+
+  **Where to find:** Supabase Dashboard → Settings → API → Project API keys → `anon` `public`
+
+  **Example:**
+  ```
+  VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  ```
+</ParamField>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create environment file">
+    Copy the example environment file:
+
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+
+  <Step title="Get Supabase credentials">
+    For **local development**:
+
+    ```bash
+    npx supabase start
+    ```
+
+    This outputs your local credentials including the API URL and anon key.
+
+    For **production** or **cloud development**:
+
+    1. Go to your Supabase project dashboard
+    2. Navigate to Settings → API
+    3. Copy the "Project URL" and "anon public" key
+  </Step>
+
+  <Step title="Update .env file">
+    Replace the placeholder values in `.env`:
+
+    ```bash .env
+    VITE_SUPABASE_URL=http://localhost:54321
+    VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+    ```
+  </Step>
+
+  <Step title="Restart development server">
+    Environment variable changes require a server restart:
+
+    ```bash
+    # Stop the server (Ctrl+C)
+    npm run dev
+    ```
+  </Step>
+</Steps>
+
+## Usage in Code
+
+Environment variables are accessed through `import.meta.env` in Vite:
+
+```typescript src/lib/supabaseClient.ts
+import { createClient } from '@supabase/supabase-js';
+import { Database } from '@/types/supabase';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase credentials are missing. Please add them to your .env file.');
+}
+
+export const supabase = createClient<Database>(
+  supabaseUrl || '', 
+  supabaseAnonKey || ''
+);
+```
+
+<Note>
+The Supabase client initialization includes validation to warn you if credentials are missing. Check your browser console for these warnings.
+</Note>
+
+## Environment-Specific Configuration
+
+### Local Development
+
+Use Supabase local development for testing:
+
+```bash .env.local
+VITE_SUPABASE_URL=http://localhost:54321
+VITE_SUPABASE_ANON_KEY=<local-anon-key-from-supabase-start>
+```
+
+### Staging Environment
+
+Connect to a staging Supabase project:
+
+```bash .env.staging
+VITE_SUPABASE_URL=https://staging-project.supabase.co
+VITE_SUPABASE_ANON_KEY=<staging-anon-key>
+```
+
+### Production Environment
+
+For production deployments (Vercel, Netlify, etc.), set environment variables through your hosting platform's dashboard.
+
+<CodeGroup>
+```bash Vercel
+# Set via Vercel dashboard or CLI
+vercel env add VITE_SUPABASE_URL
+vercel env add VITE_SUPABASE_ANON_KEY
+```
+
+```bash Netlify
+# Set via Netlify dashboard or CLI
+netlify env:set VITE_SUPABASE_URL "https://..."
+netlify env:set VITE_SUPABASE_ANON_KEY "eyJ..."
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<Warning>
+**Important security considerations:**
+
+1. **Never commit `.env` files** - They're in `.gitignore` by default
+2. **Use the anon key only** - Never expose the `service_role` key in frontend code
+3. **Rely on RLS** - Row Level Security policies protect your data, not API keys
+4. **Rotate keys if exposed** - Generate new keys from Supabase dashboard if compromised
+</Warning>
+
+### Git Security
+
+The `.env` file is excluded from version control:
+
+```gitignore .gitignore
+# Environment files
+.env
+.env.local
+.env.production
+```
+
+Only `.env.example` should be committed, with placeholder values.
+
+### API Key Types
+
+Supabase provides different API keys:
+
+| Key Type | Usage | Safe for Frontend? |
+|----------|-------|--------------------|
+| `anon` (public) | Client-side requests | ✅ Yes - Protected by RLS |
+| `service_role` | Server-side admin tasks | ❌ No - Bypasses RLS |
+
+<Tip>
+The `VITE_SUPABASE_ANON_KEY` is designed to be publicly exposed. Security comes from Row Level Security policies in your database, not from hiding the key.
+</Tip>
+
+## Validation
+
+Verify your environment variables are loaded correctly:
+
+```typescript
+// Check in browser console
+console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+console.log('Has anon key:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+```
+
+Or check the console output when the app starts - the Supabase client logs connection info:
+
+```
+[Supabase] Client initialized with URL: http://localhost:54321
+[Supabase] Anon key prefix: eyJhbGciOi ...
+```
+
+## Troubleshooting
+
+### Variables not loading
+
+**Symptoms:** `undefined` values for environment variables
+
+**Solutions:**
+1. Ensure variables are prefixed with `VITE_`
+2. Restart dev server after changing `.env`
+3. Check `.env` file is in project root
+4. Verify no syntax errors in `.env` (no quotes needed)
+
+### Connection errors
+
+**Symptoms:** "Failed to connect to Supabase" errors
+
+**Solutions:**
+1. Verify URL format is correct (no trailing slashes)
+2. Check anon key is complete (they're very long)
+3. For local dev, ensure `npx supabase start` is running
+4. Test connection in browser network tab
+
+### Supabase local development
+
+**Symptoms:** Wrong credentials for local development
+
+**Solution:** Get fresh credentials:
+
+```bash
+npx supabase status
+```
+
+This displays current local project URLs and keys.
+
+## Additional Resources
+
+- [Vite Environment Variables](https://vitejs.dev/guide/env-and-mode.html)
+- [Supabase API Keys Documentation](https://supabase.com/docs/guides/api/api-keys)
+- [Supabase Row Level Security](https://supabase.com/docs/guides/auth/row-level-security)

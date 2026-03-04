@@ -1,0 +1,254 @@
+---
+title: Development Setup
+description: Step-by-step guide to set up your local development environment for BoxApp
+---
+
+## Prerequisites
+
+Before setting up BoxApp locally, ensure you have the following installed:
+
+- **Node.js** v18 or higher
+- **npm** v9 or higher
+- **Supabase CLI** v1.200.0 or higher
+- **Git** for version control
+
+<Note>
+BoxApp is built with React 18, TypeScript 5, and Vite 4. Make sure your development environment supports these technologies.
+</Note>
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the BoxApp repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd boxapp
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    This installs core dependencies including:
+    - **React 18.2** - UI framework
+    - **TypeScript 5.0** - Type safety
+    - **Vite 4.4** - Build tool and dev server
+    - **Supabase JS 2.94** - Backend client
+    - **Radix UI** - Headless UI components
+    - **Tailwind CSS 3.4** - Utility-first styling
+    - **React Router 7.13** - Client-side routing
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the project root by copying the example file:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Then update the values with your Supabase credentials. See [Environment Variables](/technical/environment-variables) for details.
+  </Step>
+
+  <Step title="Set up Supabase local development">
+    Initialize and start the local Supabase instance:
+
+    ```bash
+    npx supabase start
+    ```
+
+    This command will:
+    - Start PostgreSQL database on port `54322`
+    - Start API server on port `54321`
+    - Run all pending migrations
+    - Seed the database with initial data
+
+    <Tip>
+    The first time you run this command, it may take a few minutes to download and set up the Docker containers.
+    </Tip>
+  </Step>
+
+  <Step title="Run database migrations">
+    Apply all database migrations to set up the schema:
+
+    ```bash
+    npm run db:migrate
+    ```
+
+    This runs `supabase db push` to sync your local migrations with the database.
+  </Step>
+
+  <Step title="Start the development server">
+    Launch the Vite development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    The application will be available at `http://localhost:5173` by default.
+
+    <Note>
+    The `predev` script automatically runs migrations before starting the dev server, so you typically don't need to run migrations manually.
+    </Note>
+  </Step>
+</Steps>
+
+## Development Workflow
+
+### Available Scripts
+
+BoxApp includes several npm scripts for common development tasks:
+
+<CodeGroup>
+```bash Development Server
+npm run dev
+```
+
+```bash Type Checking & Build
+npm run build
+```
+
+```bash Linting
+npm run lint
+```
+
+```bash Preview Production Build
+npm run preview
+```
+
+```bash Database Migrations
+npm run db:migrate
+```
+</CodeGroup>
+
+### Project Structure
+
+The BoxApp codebase follows a standard React + TypeScript structure:
+
+```
+src/
+├── components/        # React components
+│   ├── ui/           # shadcn/ui components
+│   ├── competitions/ # Competition module components
+│   └── ...           # Feature components
+├── contexts/         # React context providers
+├── hooks/            # Custom React hooks
+├── layouts/          # Page layout components
+├── lib/              # Utility libraries
+│   ├── supabaseClient.ts
+│   └── utils.ts
+├── locales/          # i18n translations
+├── pages/            # Route page components
+├── types/            # TypeScript type definitions
+├── utils/            # Helper functions
+└── main.tsx          # Application entry point
+```
+
+### Path Aliases
+
+BoxApp uses TypeScript path aliases for cleaner imports:
+
+```typescript
+import { Button } from '@/components/ui/button'
+import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/contexts/AuthContext'
+```
+
+The `@/` alias maps to the `src/` directory, configured in:
+- `tsconfig.json:22-24` - TypeScript path resolution
+- `vite.config.ts:8-10` - Vite bundler alias
+
+## TypeScript Configuration
+
+BoxApp uses strict TypeScript settings for maximum type safety:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  }
+}
+```
+
+<Warning>
+The `strict` mode is enabled. Ensure all your code passes type checking before committing.
+</Warning>
+
+## Linting
+
+BoxApp uses ESLint with TypeScript and React plugins:
+
+```javascript .eslintrc.cjs
+module.exports = {
+  root: true,
+  env: { browser: true, es2020: true },
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended',
+  ],
+  parser: '@typescript-eslint/parser',
+  plugins: ['react-refresh'],
+}
+```
+
+Run linting with:
+
+```bash
+npm run lint
+```
+
+## Troubleshooting
+
+### Port conflicts
+
+If ports 5173, 54321, or 54322 are already in use:
+
+1. Stop conflicting services
+2. Or modify ports in `vite.config.ts` and `supabase/config.toml`
+
+### Supabase connection issues
+
+If you see Supabase credential warnings:
+
+1. Verify `.env` file exists with correct values
+2. Restart the dev server after updating environment variables
+3. Check that Supabase local instance is running: `npx supabase status`
+
+### Migration errors
+
+If migrations fail:
+
+```bash
+# Reset local database
+npx supabase db reset
+
+# Reapply migrations
+npm run db:migrate
+```
+
+<Warning>
+Resetting the database will delete all local data. Use with caution.
+</Warning>
+
+## Next Steps
+
+Once your development environment is set up:
+
+- Review [Environment Variables](/technical/environment-variables) configuration
+- Learn about [Database Migrations](/technical/database-migrations)
+- Explore the [Component Library](/technical/components)
+- Start building features!

@@ -1,0 +1,625 @@
+---
+title: Multi-Tenancy Implementation
+description: Complete guide to BoxApp's multi-tenant architecture, isolation, and subdomain routing
+---
+
+## Overview
+
+BoxApp is a fully multi-tenant SaaS platform where each CrossFit gym ("box") operates as an isolated tenant with its own subdomain, data, and configuration. Tenant isolation is enforced at multiple levels: application logic, database RLS policies, and URL routing.
+
+## Tenant Resolution
+
+### Subdomain-Based Routing
+
+In production, tenants are identified by subdomain:
+
+```
+https://crossfitbox.boxora.website  → tenant: "crossfitbox"
+https://elitefit.boxora.website     → tenant: "elitefit"
+https://www.boxora.website          → main marketing site
+https://admin.boxora.website        → super admin panel
+```
+
+### Development Mode
+
+In development (localhost), tenants are identified by query parameter:
+
+```
+http://localhost:5173/?box=crossfitbox
+http://localhost:5173/?box=elitefit
+```
+
+### Tenant Slug Extraction
+
+```typescript
+// src/utils/tenant.ts:25-44
+export function getTenantSlug(): string | null {
+    const host = window.location.hostname;
+
+    // Dev mode: localhost or 127.0.0.1
+    if (host === 'localhost' || host === '127.0.0.1') {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('box') || null;
+    }
+
+    // Prod: extract subdomain from *.boxora.website
+    if (host.endsWith(`.${MAIN_DOMAIN}`)) {
+        const slug = host.slice(0, host.length - MAIN_DOMAIN.length - 1);
+        // Exclude system subdomains
+        if (slug && slug !== 'www' && slug !== 'admin') {
+            return slug;
+        }
+    }
+
+    return null;
+}
+```
+
+<Note>
+The `slug` must be globally unique across all tenants. It's stored in the `boxes.slug` column.
+</Note>
+
+### Building Tenant URLs
+
+```typescript
+// src/utils/tenant.ts:51-57
+export function buildTenantUrl(slug: string): string {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+        return `/?box=${slug}`;
+    }
+    return `https://${slug}.${MAIN_DOMAIN}`;
+}
+```
+
+## TenantProvider
+
+The `TenantProvider` context resolves tenant information before authentication:
+
+```typescript
+// src/contexts/TenantContext.tsx:8-15
+interface TenantContextType {
+    tenantSlug: string | null;
+    tenantBox: BoxRow | null;
+    isTenantSubdomain: boolean;  // true if getTenantSlug() !== null
+    isSuspended: boolean;         // true if subscription_status is 'suspended' or 'cancelled'
+    tenantNotFound: boolean;      // true if the slug doesn't exist in the DB
+    isLoading: boolean;
+}
+```
+
+### Tenant Fetch Logic
+
+```typescript
+// src/contexts/TenantContext.tsx:32-63
+useEffect(() => {
+    // If not on a tenant subdomain/route, nothing to fetch
+    if (!tenantSlug) {
+        setIsLoading(false);
+        return;
+    }
+
+    const fetchBox = async () => {
+        try {
+            // This is an anonymous fetch. RLS should allow reading boxes by slug.
+            const { data, error } = await supabase
+                .from('boxes')
+                .select('*')
+                .eq('slug', tenantSlug)
+                .single();
+
+            if (error || !data) {
+                console.warn(`[TenantContext] Box not found for slug: ${tenantSlug}`);
+                setTenantNotFound(true);
+            } else {
+                setTenantBox(data as BoxRow);
+            }
+        } catch (err) {
+            console.error('[TenantContext] Unexpected error fetching box:', err);
+            setTenantNotFound(true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    fetchBox();
+}, [tenantSlug]);
+```
+
+<Warning>
+The box fetch is **anonymous** (no authentication required). RLS policies must allow public read access to boxes by slug.
+</Warning>
+
+### Suspension Check
+
+```typescript
+// src/contexts/TenantContext.tsx:65-67
+const isSuspended =
+    tenantBox?.subscription_status === 'suspended' ||
+    tenantBox?.subscription_status === 'cancelled';
+```
+
+If suspended, all access is blocked:
+
+```tsx
+// src/App.tsx:106-109
+if (isSuspended) {
+    return <SuspendedScreen />;
+}
+```
+
+## Database-Level Isolation
+
+### The box_id Column
+
+Every tenant-scoped table includes a `box_id` foreign key:
+
+```sql
+CREATE TABLE wods (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    box_id UUID NOT NULL REFERENCES boxes(id),
+    title TEXT NOT NULL,
+    date DATE NOT NULL,
+    -- ... other columns
+);
+```
+
+### current_user_box_id() Function
+
+Helper function used in RLS policies:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:8-11
+CREATE OR REPLACE FUNCTION public.current_user_box_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT box_id FROM public.profiles WHERE id = auth.uid()
+$$;
+```
+
+This function:
+
+1. Gets current authenticated user ID (`auth.uid()`)
+2. Looks up their `box_id` from profiles
+3. Returns the box_id for RLS checks
+
+<Tip>
+The function is `SECURITY DEFINER` so it runs with elevated privileges, and `STABLE` so PostgreSQL can optimize repeated calls.
+</Tip>
+
+### Row-Level Security Policies
+
+Every table has RLS policies enforcing tenant isolation:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:17-28
+DO $$ BEGIN
+IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='wods') THEN
+  ALTER TABLE public.wods ENABLE ROW LEVEL SECURITY;
+  DROP POLICY IF EXISTS "tenant_isolation_select" ON public.wods;
+  DROP POLICY IF EXISTS "tenant_isolation_insert" ON public.wods;
+  DROP POLICY IF EXISTS "tenant_isolation_update" ON public.wods;
+  DROP POLICY IF EXISTS "tenant_isolation_delete" ON public.wods;
+  CREATE POLICY "tenant_isolation_select" ON public.wods FOR SELECT TO authenticated USING (box_id = public.current_user_box_id());
+  CREATE POLICY "tenant_isolation_insert" ON public.wods FOR INSERT TO authenticated WITH CHECK (box_id = public.current_user_box_id());
+  CREATE POLICY "tenant_isolation_update" ON public.wods FOR UPDATE TO authenticated USING (box_id = public.current_user_box_id()) WITH CHECK (box_id = public.current_user_box_id());
+  CREATE POLICY "tenant_isolation_delete" ON public.wods FOR DELETE TO authenticated USING (box_id = public.current_user_box_id() AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role_id IN ('admin','coach')));
+  RAISE NOTICE 'RLS applied to: wods';
+END IF;
+END $$;
+```
+
+**Policy Breakdown:**
+
+- **SELECT**: User can only see rows where `box_id` matches their box
+- **INSERT**: User can only insert rows with their `box_id`
+- **UPDATE**: User can only update rows from their box
+- **DELETE**: User can only delete rows from their box (and must be admin/coach)
+
+### Anonymous Access for Box Lookup
+
+The `boxes` table allows anonymous reads by slug for tenant resolution:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:479-480
+CREATE POLICY "tenant_isolation_select" ON public.boxes FOR SELECT TO authenticated USING (id = public.current_user_box_id());
+CREATE POLICY "anon_select_by_slug" ON public.boxes FOR SELECT TO anon USING (true);
+```
+
+<Warning>
+Anonymous users can read all boxes (needed for tenant resolution). Ensure sensitive data is not in the boxes table.
+</Warning>
+
+## Cross-Table Isolation
+
+Some tables don't have direct `box_id` but inherit isolation through foreign keys:
+
+### Example: Competition Events
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:256-267
+IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='competition_events' AND column_name='box_id') THEN
+    CREATE POLICY "tenant_isolation_select" ON public.competition_events FOR SELECT TO authenticated USING (box_id = public.current_user_box_id());
+    -- ... other policies
+ELSE
+    -- Fallback: join via competition_id -> competitions.box_id
+    CREATE POLICY "tenant_isolation_select" ON public.competition_events FOR SELECT TO authenticated USING (
+        EXISTS (
+            SELECT 1 FROM public.competitions c 
+            WHERE c.id = competition_events.competition_id 
+            AND c.box_id = public.current_user_box_id()
+        )
+    );
+END IF;
+```
+
+This pattern ensures isolation even when `box_id` is only on parent tables.
+
+## Application-Level Integration
+
+### Tenant-Aware Authentication
+
+The `AuthProvider` receives tenant context:
+
+```tsx
+// src/App.tsx:243-249
+function AuthProviderWithTenant({ children }: { children: React.ReactNode }) {
+  const { tenantBox } = useTenant();
+  return (
+    <AuthProvider tenantBoxId={tenantBox?.id}>
+      {children}
+    </AuthProvider>
+  );
+}
+```
+
+### Profile Box ID Reconciliation
+
+After login, the user's `box_id` is reconciled with tenant context:
+
+```tsx
+// src/contexts/AuthContext.tsx:67-84
+const oauthStoreBoxId = localStorage.getItem('pending_box_id');
+const effectiveBoxId = oauthStoreBoxId || tenantBoxId;
+
+if (effectiveBoxId && (!profileData.box_id || profileData.box_id !== effectiveBoxId)) {
+    console.log('[AuthContext] Reconciling box_id from context:', effectiveBoxId);
+    const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ box_id: effectiveBoxId })
+        .eq('id', userId);
+    if (!updateErr) {
+        profileData.box_id = effectiveBoxId;
+    }
+}
+
+if (oauthStoreBoxId) {
+    localStorage.removeItem('pending_box_id');
+}
+```
+
+<Note>
+This ensures users are always associated with the correct tenant, even after OAuth redirects.
+</Note>
+
+## Subscription Management
+
+### Subscription Status
+
+Boxes have a subscription lifecycle:
+
+```sql
+-- supabase/migrations/20260302_add_subscription_status.sql:9-16
+CREATE TYPE public.subscription_status_type AS ENUM (
+  'trial',
+  'active',
+  'suspended',
+  'cancelled'
+);
+```
+
+**Status Flow:**
+
+1. **trial**: New box (14-30 day trial)
+2. **active**: Paying subscription
+3. **suspended**: Payment failed (temporary)
+4. **cancelled**: Subscription ended (permanent)
+
+### Checking Active Status
+
+Database function to check if tenant is active:
+
+```sql
+-- supabase/migrations/20260302_add_subscription_status.sql:51-61
+CREATE OR REPLACE FUNCTION public.is_tenant_active()
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT COALESCE(
+    (
+      SELECT subscription_status IN ('active', 'trial')
+      FROM public.boxes
+      WHERE id = public.current_user_box_id()
+    ),
+    false
+  )
+$$;
+```
+
+### Blocking Suspended Tenants
+
+App-level check blocks access:
+
+```tsx
+// src/App.tsx:106-109
+if (isSuspended) {
+    return <SuspendedScreen />;
+}
+```
+
+This check runs **before** authentication, blocking all routes.
+
+## Per-Tenant Customization
+
+### Theme Configuration
+
+Each box can customize their theme:
+
+```typescript
+// Stored in boxes.theme_config (JSONB)
+{
+  "primaryColor": "#FF6B6B",
+  "radius": 0.5,
+  "designStyle": "modern"
+}
+```
+
+Applied on login:
+
+```tsx
+// src/App.tsx:86-92
+if (currentBox.theme_config) {
+    const config = currentBox.theme_config as any;
+    if (config.primaryColor) setPrimaryColor(config.primaryColor);
+    if (config.radius) setRadius(config.radius);
+    if (config.designStyle) setDesignStyle(config.designStyle);
+}
+```
+
+### Branding Assets
+
+Each box can upload:
+
+- `logo_url`: Main logo
+- `favicon_url`: Browser favicon
+- `login_background_url`: Login page background
+
+```tsx
+// src/App.tsx:69-84
+if (currentBox) {
+    // Update Branding (Title & Favicon)
+    const baseTitle = 'BoxApp';
+    const boxName = currentBox.name || 'CrossFit Management';
+    document.title = `${boxName} | ${baseTitle}`;
+
+    if (currentBox.favicon_url) {
+        let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.getElementsByTagName('head')[0].appendChild(link);
+        }
+        link.href = currentBox.favicon_url;
+    }
+    // ...
+}
+```
+
+## Data Migration Between Tenants
+
+<Warning>
+Cross-tenant data sharing is **not supported by design**. Each tenant's data must remain isolated.
+</Warning>
+
+If you need to migrate a user between tenants:
+
+1. Create new profile in target tenant
+2. Manually copy user data (with proper authorization)
+3. Update `box_id` in profile
+4. Delete old profile (optional)
+
+Never share primary keys or foreign keys across tenants.
+
+## Super Admin Override
+
+Super admins can bypass tenant isolation:
+
+```sql
+-- supabase/migrations/20260219_superadmin_rls.sql
+CREATE POLICY "superadmin_full_access" ON public.boxes 
+FOR ALL TO authenticated 
+USING (
+    auth.email() = 'root@test.com' 
+    OR (auth.jwt() -> 'user_metadata' ->> 'is_root')::boolean = true
+);
+```
+
+This policy grants full access to users with:
+
+- Email: `root@test.com`
+- Or `is_root: true` in user metadata
+
+<Tip>
+Super admin policies should be added to all tenant-scoped tables for platform administration.
+</Tip>
+
+## Audit Logging with Tenant Context
+
+Audit logs capture `box_id` for tenant-scoped tracking:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:533-534
+current_user_id := auth.uid();
+SELECT box_id INTO current_box_id FROM public.profiles WHERE id = current_user_id;
+```
+
+All audit log entries include:
+
+- `changed_by`: User who made the change
+- `box_id`: Tenant where change occurred
+- `table_name`, `record_id`, `action`
+- `old_data`, `new_data`: Full row snapshots
+
+Admins can only view audit logs for their tenant:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:464
+CREATE POLICY "tenant_isolation_select" ON public.audit_logs FOR SELECT TO authenticated 
+USING (
+    box_id = public.current_user_box_id() 
+    AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role_id = 'admin')
+);
+```
+
+## Testing Multi-Tenancy
+
+### Local Development
+
+Test multiple tenants locally:
+
+```bash
+# Tenant 1
+http://localhost:5173/?box=testbox1
+
+# Tenant 2
+http://localhost:5173/?box=testbox2
+```
+
+### Verification Checklist
+
+- [ ] Users can only see data from their box
+- [ ] Inserting records auto-populates `box_id`
+- [ ] Cross-tenant queries return zero results
+- [ ] Admins can't access other tenants' data
+- [ ] Super admin can access all tenants
+- [ ] Suspended tenants are blocked
+- [ ] Anonymous box lookup works
+- [ ] OAuth users get correct `box_id`
+
+### RLS Policy Testing
+
+Test RLS policies directly in SQL:
+
+```sql
+-- Set session context
+SELECT set_config('request.jwt.claims', 
+  '{"sub":"user-uuid","email":"test@example.com"}', true);
+
+-- Try to access another tenant's data
+SELECT * FROM wods WHERE box_id != 'current-user-box-id';
+-- Should return 0 rows
+```
+
+## Common Pitfalls
+
+### 1. Forgetting box_id on Insert
+
+**Problem:**
+```typescript
+await supabase.from('wods').insert({ title: 'Murph' });
+// RLS policy will reject (no box_id)
+```
+
+**Solution:**
+```typescript
+const { currentBox } = useAuth();
+await supabase.from('wods').insert({ 
+  title: 'Murph',
+  box_id: currentBox.id 
+});
+```
+
+### 2. Hardcoding Tenant in Client
+
+**Problem:**
+```typescript
+const BOX_ID = 'some-uuid'; // Don't do this!
+```
+
+**Solution:**
+Always read from context:
+```typescript
+const { currentBox } = useAuth();
+const boxId = currentBox?.id;
+```
+
+### 3. Exposing All Boxes in API
+
+**Problem:**
+Allowing `SELECT * FROM boxes` without filters.
+
+**Solution:**
+RLS policies enforce this, but still use explicit filters:
+```typescript
+const { data } = await supabase
+  .from('boxes')
+  .select('*')
+  .eq('id', currentBox.id)
+  .single();
+```
+
+### 4. Not Testing Tenant Isolation
+
+Always test that users cannot:
+
+- See other tenants' data
+- Update other tenants' records
+- Join to other tenants' tables
+
+## Performance Considerations
+
+### Indexing box_id
+
+Create indexes on `box_id` for better query performance:
+
+```sql
+CREATE INDEX idx_wods_box_id ON wods(box_id);
+CREATE INDEX idx_profiles_box_id ON profiles(box_id);
+CREATE INDEX idx_leads_box_id ON leads(box_id);
+```
+
+### Composite Indexes
+
+For common queries, use composite indexes:
+
+```sql
+-- Frequently filter by box_id + date
+CREATE INDEX idx_wods_box_date ON wods(box_id, date DESC);
+```
+
+### Connection Pooling
+
+Supabase handles connection pooling automatically, but for high-traffic tenants, consider:
+
+- Database read replicas
+- Query result caching
+- Materialized views for analytics
+
+## Scaling Multi-Tenancy
+
+BoxApp uses the **shared database, shared schema** model:
+
+**Pros:**
+- Simple deployment
+- Easy schema migrations
+- Cost-effective for small/medium tenants
+
+**Cons:**
+- All tenants share same database resources
+- One tenant's load can affect others
+- Harder to provide tenant-specific SLAs
+
+**Future Scaling Options:**
+
+1. **Sharding**: Split large tenants to dedicated databases
+2. **Schema-per-tenant**: Each tenant gets own schema
+3. **Database-per-tenant**: Ultimate isolation (expensive)
+
+For most deployments, the current shared model with RLS is sufficient.

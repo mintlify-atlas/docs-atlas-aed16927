@@ -1,0 +1,582 @@
+---
+title: Authentication System
+description: Deep dive into BoxApp's authentication, authorization, and session management
+---
+
+## Overview
+
+BoxApp uses Supabase Auth for authentication with custom role-based access control (RBAC) and multi-tenant isolation. The system supports email/password authentication, OAuth providers, and admin-controlled password resets.
+
+## Authentication Flow
+
+### Standard Login Flow
+
+1. User navigates to tenant URL (e.g., `crossfitbox.boxora.website`)
+2. `TenantProvider` resolves box from subdomain/query param
+3. User submits credentials on `/login`
+4. `AuthContext.signIn()` calls Supabase Auth
+5. Profile fetched and `box_id` reconciled with tenant
+6. Box settings applied (theme, branding)
+7. User redirected to `/dashboard`
+
+```tsx
+// src/contexts/AuthContext.tsx:153-167
+const signIn = async (credentials: any) => {
+    setLoading(true);
+    console.log('[AuthContext] SignIn process started');
+    const result = await supabase.auth.signInWithPassword(credentials);
+
+    if (result.error) {
+        setLoading(false);
+        console.log('[AuthContext] SignIn error, loading set to false');
+    } else if (result.data.user) {
+        // Explicitly fetch profile to ensure it's ready when the promise resolves
+        await fetchProfile(result.data.user.id);
+    }
+
+    return result;
+};
+```
+
+### OAuth Flow (Google)
+
+BoxApp supports OAuth authentication with automatic tenant association:
+
+```tsx
+// src/contexts/AuthContext.tsx:169-185
+const signInWithGoogle = async (boxId?: string) => {
+    console.log('[AuthContext] Google OAuth started, boxId:', boxId);
+
+    // Store box context in localStorage so fetchProfile can reconcile it after redirect
+    if (boxId || tenantBoxId) {
+        localStorage.setItem('pending_box_id', boxId || (tenantBoxId as string));
+    }
+
+    const result = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+        },
+    });
+    // onAuthStateChange will handle session + profile fetch after redirect
+    return { error: result.error };
+};
+```
+
+<Note>
+The `pending_box_id` is stored in localStorage before OAuth redirect. After callback, `fetchProfile` reconciles this with the user's profile.
+</Note>
+
+### OAuth Callback Handling
+
+After OAuth provider redirects back:
+
+1. User lands on `/auth/callback`
+2. Supabase extracts tokens from URL hash
+3. `onAuthStateChange` event fires
+4. `fetchProfile` runs and reconciles `box_id` from localStorage
+5. User redirected to dashboard
+
+```tsx
+// src/contexts/AuthContext.tsx:67-80
+const oauthStoreBoxId = localStorage.getItem('pending_box_id');
+const effectiveBoxId = oauthStoreBoxId || tenantBoxId;
+
+if (effectiveBoxId && (!profileData.box_id || profileData.box_id !== effectiveBoxId)) {
+    console.log('[AuthContext] Reconciling box_id from context:', effectiveBoxId);
+    const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ box_id: effectiveBoxId })
+        .eq('id', userId);
+    if (!updateErr) {
+        profileData.box_id = effectiveBoxId;
+    }
+}
+
+if (oauthStoreBoxId) {
+    localStorage.removeItem('pending_box_id');
+}
+```
+
+## Session Management
+
+### Session Initialization
+
+On app load, `AuthProvider` checks for existing session:
+
+```tsx
+// src/contexts/AuthContext.tsx:118-130
+useEffect(() => {
+    // Initial session check
+    console.log('[AuthContext] Initial session check...');
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+            fetchProfile(session.user.id);
+        } else {
+            setLoading(false);
+            console.log('[AuthContext] No initial session, loading set to false');
+        }
+    });
+    // ...
+}, []);
+```
+
+### Session Persistence
+
+Supabase Auth automatically handles session persistence via:
+
+- **Cookies** (for SSR/server-side)
+- **LocalStorage** (for client-side)
+
+Sessions are refreshed automatically before expiration.
+
+### Auth State Changes
+
+The app listens for all auth state changes:
+
+```tsx
+// src/contexts/AuthContext.tsx:132-151
+const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    console.log(`[AuthContext] OnAuthStateChange: ${event}`, newSession?.user?.id);
+
+    setSession(newSession);
+    setUser(newSession?.user ?? null);
+
+    if (newSession?.user) {
+        // Only fetch if session changed or event is SIGNED_IN
+        // This helps avoid redundant fetches but ensures we get the latest profile
+        fetchProfile(newSession.user.id);
+    } else {
+        setUserProfile(null);
+        setLoading(false);
+        console.log('[AuthContext] Clear session, loading set to false');
+    }
+});
+
+return () => subscription.unsubscribe();
+```
+
+**Events:**
+
+- `SIGNED_IN`: User authenticated
+- `SIGNED_OUT`: User logged out
+- `TOKEN_REFRESHED`: Session token refreshed
+- `USER_UPDATED`: User metadata updated
+- `PASSWORD_RECOVERY`: Password reset initiated
+
+## User Profile Management
+
+### Profile Structure
+
+```typescript
+// src/contexts/AuthContext.tsx:6-7
+type Profile = Database['public']['Tables']['profiles']['Row'];
+type Box = Database['public']['Tables']['boxes']['Row'];
+```
+
+Profile includes:
+
+- `id`: UUID (matches auth.users.id)
+- `box_id`: Tenant association
+- `role_id`: User role (admin, coach, athlete, etc.)
+- `email`, `full_name`, `avatar_url`
+- `phone`, `emergency_contact`, `emergency_phone`
+- `date_of_birth`, `address`
+- `force_password_change`: Forces password reset on next login
+
+### Fetching Profile
+
+Profile is fetched after authentication:
+
+```tsx
+// src/contexts/AuthContext.tsx:42-110
+const fetchProfile = async (userId: string) => {
+    console.log('[AuthContext] fetchProfile started for:', userId);
+
+    // Safety timeout to prevent indefinite loading
+    const timeoutId = setTimeout(() => {
+        console.warn('[AuthContext] fetchProfile timed out, forcing loading to false');
+        setLoading(false);
+    }, 5000);
+
+    try {
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            console.warn('[AuthContext] Error fetching profile:', error.message);
+            setUserProfile(null);
+        } else if (data) {
+            console.log('[AuthContext] Profile loaded successfully');
+            // ... reconcile box_id ...
+            setUserProfile(data as Profile);
+
+            // Fetch Box settings if profile has box_id
+            const boxId = (data as any).box_id;
+            if (boxId) {
+                const { data: boxData, error: boxError } = await supabase
+                    .from('boxes' as any)
+                    .select('*')
+                    .eq('id', boxId)
+                    .single();
+
+                if (boxData && !boxError) {
+                    setCurrentBox(boxData as unknown as Box);
+                    console.log('[AuthContext] Box settings loaded successfully');
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[AuthContext] Unexpected error in fetchProfile:', err);
+    } finally {
+        clearTimeout(timeoutId);
+        setLoading(false);
+        console.log('[AuthContext] Loading set to false');
+    }
+};
+```
+
+<Warning>
+The 5-second timeout prevents indefinite loading if profile fetch fails. This is a safety mechanism.
+</Warning>
+
+### Refreshing Profile
+
+Manual profile refresh after updates:
+
+```tsx
+// src/contexts/AuthContext.tsx:112-116
+const refreshProfile = async () => {
+    if (user) {
+        await fetchProfile(user.id);
+    }
+};
+```
+
+## Role-Based Access Control
+
+### Available Roles
+
+Defined in the `roles` table:
+
+- **admin**: Full system access within tenant
+- **coach**: Manage WODs, members, competitions
+- **receptionist**: Manage members, leads, billing
+- **athlete**: Basic member access
+
+### Role Flags
+
+Convenience flags in AuthContext:
+
+```tsx
+// src/contexts/AuthContext.tsx:37-40
+const isAdmin = userProfile?.role_id === 'admin';
+const isCoach = userProfile?.role_id === 'coach';
+const isRoot = session?.user?.email === 'root@test.com' || session?.user?.user_metadata?.is_root === true;
+const isAthlete = userProfile?.role_id === 'athlete';
+```
+
+### Route Protection
+
+Routes are protected using the `ProtectedRoute` component:
+
+```tsx
+// src/components/ProtectedRoute.tsx:11-64
+export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+    const { userProfile, loading, session } = useAuth();
+    const location = useLocation();
+
+    if (loading) {
+        return <LoadingSpinner />;
+    }
+
+    if (!session) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (!userProfile) {
+        return <AccessDenied />;
+    }
+
+    if (allowedRoles && (!userProfile.role_id || !allowedRoles.includes(userProfile.role_id))) {
+        return <AccessRestricted />;
+    }
+
+    return <>{children}</>;
+};
+```
+
+**Usage:**
+
+```tsx
+// src/App.tsx:165-172
+<Route path="/members"
+  element={
+    <ProtectedRoute allowedRoles={['admin', 'coach', 'receptionist']}>
+      <Members userProfile={userProfile} />
+    </ProtectedRoute>
+  }
+/>
+```
+
+### Database-Level Authorization
+
+RLS policies enforce role checks at the database level:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:23-26
+CREATE POLICY "tenant_isolation_delete" ON public.wods FOR DELETE TO authenticated 
+USING (
+    box_id = public.current_user_box_id() 
+    AND EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role_id IN ('admin','coach'))
+);
+```
+
+<Tip>
+Double protection: routes are protected client-side, but database RLS ensures security even if client-side checks are bypassed.
+</Tip>
+
+## Super Admin System
+
+### Root User
+
+Super admin is identified by:
+
+```tsx
+// src/App.tsx:145-147
+const isSuperAdmin =
+    session?.user?.email === 'root@test.com' ||
+    session?.user?.user_metadata?.is_root === true;
+```
+
+### Super Admin Privileges
+
+- Access to `/admin` panel
+- Bypass tenant isolation (can see all boxes)
+- Reset passwords across tenants
+- Manage subscription status
+
+### Super Admin RLS Bypass
+
+```sql
+-- supabase/migrations/20260219_superadmin_rls.sql
+CREATE POLICY "superadmin_full_access" ON public.boxes 
+FOR ALL TO authenticated 
+USING (
+    auth.email() = 'root@test.com' 
+    OR (auth.jwt() -> 'user_metadata' ->> 'is_root')::boolean = true
+);
+```
+
+<Warning>
+Super admin access should be tightly controlled. Only use for platform administration.
+</Warning>
+
+## Password Management
+
+### User Password Reset
+
+Standard password reset flow:
+
+```tsx
+// src/contexts/AuthContext.tsx:213-220
+const resetPassword = async (email: string) => {
+    setLoading(true);
+    const result = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    return result;
+};
+```
+
+### Admin Password Reset
+
+Admins can reset user passwords within their tenant:
+
+```sql
+-- supabase/migrations/20260219_rls_multi_tenant_isolation.sql:501-524
+CREATE OR REPLACE FUNCTION public.admin_reset_password(target_user_id UUID)
+RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, auth, extensions AS $$
+DECLARE
+    caller_role TEXT; caller_email TEXT; caller_box_id UUID;
+    target_box_id UUID; hashed TEXT; default_pw TEXT := '12345678';
+BEGIN
+    caller_email := auth.email();
+    SELECT role_id, box_id INTO caller_role, caller_box_id FROM public.profiles WHERE id = auth.uid();
+    
+    -- Only admins or root can reset
+    IF caller_role IS DISTINCT FROM 'admin' AND caller_email IS DISTINCT FROM 'root@test.com' THEN
+        RETURN json_build_object('error', 'Unauthorized');
+    END IF;
+    
+    -- Verify target user exists
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = target_user_id) THEN
+        RETURN json_build_object('error', 'User not found');
+    END IF;
+    
+    -- Tenant isolation: admin can only reset users in their box
+    SELECT box_id INTO target_box_id FROM public.profiles WHERE id = target_user_id;
+    IF caller_email IS DISTINCT FROM 'root@test.com' AND target_box_id IS DISTINCT FROM caller_box_id THEN
+        RETURN json_build_object('error', 'Cannot reset password for user outside your box');
+    END IF;
+    
+    -- Reset password and force change
+    hashed := extensions.crypt(default_pw, extensions.gen_salt('bf'));
+    UPDATE auth.users SET encrypted_password = hashed, updated_at = now() WHERE id = target_user_id;
+    UPDATE public.profiles SET force_password_change = true WHERE id = target_user_id;
+    
+    RETURN json_build_object('success', true);
+END; $$;
+```
+
+### Force Password Change
+
+Users flagged with `force_password_change` must reset before accessing the app:
+
+```tsx
+// src/App.tsx:140-142
+if (userProfile?.force_password_change) {
+    return <ForceChangePassword />;
+}
+```
+
+## Sign Out
+
+```tsx
+// src/contexts/AuthContext.tsx:229-233
+const signOut = async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
+    // onAuthStateChange will handle resetting state
+};
+```
+
+<Note>
+Supabase automatically clears session from storage. The `onAuthStateChange` listener handles cleanup.
+</Note>
+
+## User Registration
+
+### Self-Service Registration
+
+```tsx
+// src/contexts/AuthContext.tsx:187-210
+const signUp = async (credentials: any) => {
+    setLoading(true);
+
+    // Multi-tenant: inject box_id into metadata if tenantBoxId is available
+    const enrichedCredentials = tenantBoxId
+        ? {
+            ...credentials,
+            options: {
+                ...credentials.options,
+                data: { ...credentials.options?.data, box_id: tenantBoxId },
+            },
+        }
+        : credentials;
+
+    const result = await supabase.auth.signUp(enrichedCredentials);
+    if (result.error || !result.data.user) {
+        setLoading(false);
+    } else {
+        // For sign up, we might not have a profile yet if it's created via trigger
+        // but we call it anyway to be sure
+        await fetchProfile(result.data.user.id);
+    }
+    return result;
+};
+```
+
+<Tip>
+The `box_id` is injected into user metadata during signup, ensuring new users are associated with the correct tenant.
+</Tip>
+
+## Security Best Practices
+
+### 1. Never Trust Client-Side Checks
+
+Always enforce authorization at the database level:
+
+```sql
+-- Bad: Only client-side check
+-- Good: RLS policy + client-side check
+CREATE POLICY "users_own_profile" ON profiles
+FOR UPDATE USING (auth.uid() = id);
+```
+
+### 2. Tenant Isolation
+
+Every table with user data should have:
+
+- `box_id UUID REFERENCES boxes(id)`
+- RLS policy checking `box_id = current_user_box_id()`
+
+### 3. Rate Limiting
+
+Consider implementing rate limiting for:
+
+- Login attempts
+- Password reset requests
+- API calls
+
+### 4. Audit Logging
+
+All critical actions are automatically logged:
+
+```sql
+-- Trigger on profiles table
+CREATE TRIGGER audit_profiles_changes
+AFTER INSERT OR UPDATE OR DELETE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.proc_audit_log();
+```
+
+### 5. Secure Password Storage
+
+Passwords are hashed using bcrypt via Supabase Auth:
+
+```sql
+hashed := extensions.crypt(default_pw, extensions.gen_salt('bf'));
+```
+
+## Troubleshooting
+
+### User Can't Login
+
+Check:
+
+1. Email is confirmed (if email confirmation enabled)
+2. User has a profile record
+3. Profile has correct `box_id`
+4. Box subscription is active (not suspended/cancelled)
+
+### Profile Not Loading
+
+Check browser console for:
+
+- RLS policy errors (403 Forbidden)
+- Network errors
+- Timeout warnings (5-second limit)
+
+### OAuth Not Working
+
+Verify:
+
+1. OAuth provider configured in Supabase dashboard
+2. Redirect URL matches exactly
+3. `pending_box_id` being set before redirect
+4. `/auth/callback` route is public
+
+### Force Password Change Loop
+
+Ensure:
+
+1. Password update clears `force_password_change` flag
+2. No RLS policy blocking profile updates
+3. User has permission to update own profile

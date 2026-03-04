@@ -1,0 +1,140 @@
+---
+title: "Create Member"
+description: "Create a new member with authentication credentials and profile information"
+---
+
+## Overview
+
+The `create-member` function creates a new member in your BoxApp system. It handles both authentication account creation and profile setup in a single operation. If a user with the provided email already exists in the authentication system, the function updates their profile instead of creating a duplicate account.
+
+## Endpoint
+
+```
+POST /functions/v1/create-member
+```
+
+<Note>
+This is a Supabase Edge Function that requires service role authentication.
+</Note>
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+  The member's email address. Used for authentication and communication.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Initial password for the member's account. The member will be required to change this on first login.
+</ParamField>
+
+<ParamField body="first_name" type="string" required>
+  The member's first name.
+</ParamField>
+
+<ParamField body="last_name" type="string" required>
+  The member's last name.
+</ParamField>
+
+<ParamField body="role_id" type="string" required>
+  The role identifier that determines the member's permissions within the system.
+</ParamField>
+
+<ParamField body="box_id" type="string" required>
+  The unique identifier for the CrossFit box this member belongs to.
+</ParamField>
+
+## Response
+
+<ResponseField name="user" type="object">
+  The created or updated user object from Supabase Auth.
+  
+  <ResponseField name="id" type="string">
+    The unique user identifier.
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    The user's email address.
+  </ResponseField>
+  
+  <ResponseField name="user_metadata" type="object">
+    Contains first_name, last_name, box_id, and role_id.
+  </ResponseField>
+</ResponseField>
+
+## Behavior
+
+The function performs the following operations:
+
+1. **Checks for existing user**: Searches the authentication system for a user with the provided email
+2. **Creates or reuses auth account**: 
+   - If the user doesn't exist, creates a new authentication account with `email_confirm: true`
+   - If the user exists, uses the existing account ID
+3. **Validates box ownership**: Ensures the user isn't already registered with a different box
+4. **Creates or updates profile**: 
+   - Sets `force_password_change: true` to require password change on first login
+   - Sets `status: 'active'` to enable the member immediately
+
+<Warning>
+The system currently allows only one box per user. If you attempt to add a user who belongs to another box, the function will return an error: "Este usuario ya está registrado en otro Box. El sistema actual solo permite un Box por usuario."
+</Warning>
+
+## Example Request
+
+```javascript
+const response = await fetch('https://your-project.supabase.co/functions/v1/create-member', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+  },
+  body: JSON.stringify({
+    email: 'john.doe@example.com',
+    password: 'TempPassword123!',
+    first_name: 'John',
+    last_name: 'Doe',
+    role_id: 'member',
+    box_id: 'box_abc123'
+  })
+});
+
+const data = await response.json();
+console.log(data.user);
+```
+
+## Example Response
+
+```json
+{
+  "user": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "email": "john.doe@example.com",
+    "email_confirmed_at": "2026-03-04T12:00:00.000Z",
+    "user_metadata": {
+      "first_name": "John",
+      "last_name": "Doe",
+      "box_id": "box_abc123",
+      "role_id": "member"
+    }
+  }
+}
+```
+
+## Error Response
+
+If an error occurs, you'll receive a response with status 400:
+
+```json
+{
+  "error": "Este usuario ya está registrado en otro Box. El sistema actual solo permite un Box por usuario."
+}
+```
+
+## Common Use Cases
+
+- **Onboarding new members**: Create accounts for members joining your box
+- **Bulk member import**: Add multiple members programmatically
+- **Admin user creation**: Set up new members with specific roles
+
+<Note>
+Members created through this function will have `force_password_change` set to `true`, requiring them to change their password upon first login for security.
+</Note>

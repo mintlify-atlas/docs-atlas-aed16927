@@ -1,0 +1,114 @@
+---
+title: useLanguage
+description: React hook for managing internationalization and language switching in BoxApp
+---
+
+# useLanguage
+
+The `useLanguage` hook provides access to internationalization features, allowing you to translate content and switch between languages in your application.
+
+## Import
+
+```typescript
+import { useLanguage } from '@/hooks';
+```
+
+## Signature
+
+```typescript
+const { t, i18n, language, changeLanguage } = useLanguage();
+```
+
+## Return Value
+
+The hook returns an object with the following properties:
+
+<ResponseField name="t" type="function" required>
+  Translation function that accepts a translation key and returns the translated string.
+  
+  ```typescript
+  t('key.to.translation')
+  ```
+</ResponseField>
+
+<ResponseField name="i18n" type="object" required>
+  The i18next instance providing full access to the internationalization API.
+</ResponseField>
+
+<ResponseField name="language" type="string" required>
+  The currently active language code (e.g., 'en', 'es', 'fr').
+</ResponseField>
+
+<ResponseField name="changeLanguage" type="(lng: string) => Promise<void>" required>
+  Function to change the application language. Accepts a language code as parameter.
+  
+  ```typescript
+  changeLanguage('es')
+  ```
+</ResponseField>
+
+## Usage
+
+### Basic Translation
+
+```tsx
+import { useLanguage } from '@/hooks';
+
+function WelcomeMessage() {
+  const { t } = useLanguage();
+  
+  return (
+    <div>
+      <h1>{t('welcome.title')}</h1>
+      <p>{t('welcome.description')}</p>
+    </div>
+  );
+}
+```
+
+### Language Switcher
+
+```tsx
+import { useLanguage } from '@/hooks';
+
+function LanguageSwitcher() {
+  const { language, changeLanguage } = useLanguage();
+  
+  return (
+    <select 
+      value={language} 
+      onChange={(e) => changeLanguage(e.target.value)}
+    >
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+    </select>
+  );
+}
+```
+
+### Accessing Current Language
+
+```tsx
+import { useLanguage } from '@/hooks';
+
+function LocaleDisplay() {
+  const { language, i18n } = useLanguage();
+  
+  return (
+    <div>
+      <p>Current language: {language}</p>
+      <p>Available languages: {i18n.languages.join(', ')}</p>
+    </div>
+  );
+}
+```
+
+<Note>
+  This hook wraps `react-i18next`'s `useTranslation` hook, providing a consistent API for language management across BoxApp.
+</Note>
+
+## Related
+
+- [Internationalization Guide](/guides/internationalization)
+- [Translation Keys Reference](/api/translations)

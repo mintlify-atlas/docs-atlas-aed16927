@@ -1,0 +1,378 @@
+---
+title: "AuthContext"
+description: "Manage user authentication, session state, and role-based permissions in BoxApp"
+---
+
+The `AuthContext` provides centralized authentication state management for BoxApp. It handles user sessions, profiles, authentication methods, and role-based access control.
+
+## Provider Setup
+
+Wrap your application with `AuthProvider` to enable authentication throughout your component tree.
+
+```tsx
+import { AuthProvider } from '@/contexts/AuthContext';
+
+function App() {
+  return (
+    <AuthProvider tenantBoxId="box-123">
+      {/* Your app components */}
+    </AuthProvider>
+  );
+}
+```
+
+<ParamField path="tenantBoxId" type="string" optional>
+  Optional box ID for multi-tenant context. When provided, new user registrations and OAuth flows will automatically associate users with this box.
+</ParamField>
+
+## Hook Usage
+
+Access the authentication context using the `useAuth` hook.
+
+```tsx
+import { useAuth } from '@/contexts/AuthContext';
+
+function MyComponent() {
+  const { user, userProfile, isAdmin, signIn, signOut } = useAuth();
+  
+  if (!user) {
+    return <div>Please sign in</div>;
+  }
+  
+  return (
+    <div>
+      <h1>Welcome, {userProfile?.full_name}</h1>
+      {isAdmin && <AdminPanel />}
+      <button onClick={signOut}>Sign Out</button>
+    </div>
+  );
+}
+```
+
+<Note>
+  The `useAuth` hook must be used within an `AuthProvider`. An error will be thrown if used outside the provider tree.
+</Note>
+
+## State Properties
+
+The context exposes the following state properties:
+
+<ResponseField name="session" type="Session | null">
+  The current Supabase session object. Contains tokens, user data, and session metadata.
+</ResponseField>
+
+<ResponseField name="user" type="User | null">
+  The authenticated Supabase user object. Contains user ID, email, and metadata.
+</ResponseField>
+
+<ResponseField name="userProfile" type="Profile | null">
+  The user's profile data from the `profiles` table.
+  
+  <Expandable title="Profile Type Definition">
+    ```typescript
+    type Profile = Database['public']['Tables']['profiles']['Row'];
+    // Includes: id, role_id, box_id, full_name, etc.
+    ```
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="currentBox" type="Box | null">
+  The box (gym) settings associated with the user's profile. Automatically loaded when the user profile contains a `box_id`.
+  
+  <Expandable title="Box Type Definition">
+    ```typescript
+    type Box = Database['public']['Tables']['boxes']['Row'];
+    // Includes: id, name, slug, subscription_status, settings, etc.
+    ```
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  Indicates whether authentication state is being initialized or updated. Use this to show loading states during sign-in, sign-up, or profile refresh operations.
+</ResponseField>
+
+## Role-Based Flags
+
+Convenience boolean flags for role-based access control:
+
+<ResponseField name="isAdmin" type="boolean">
+  Returns `true` if the user's `role_id` is `'admin'`.
+</ResponseField>
+
+<ResponseField name="isCoach" type="boolean">
+  Returns `true` if the user's `role_id` is `'coach'`.
+</ResponseField>
+
+<ResponseField name="isAthlete" type="boolean">
+  Returns `true` if the user's `role_id` is `'athlete'`.
+</ResponseField>
+
+<ResponseField name="isRoot" type="boolean">
+  Returns `true` if the user's email is `'root@test.com'` or `user_metadata.is_root` is `true`. Used for super-admin access.
+</ResponseField>
+
+## Authentication Methods
+
+### signIn
+
+Sign in a user with email and password.
+
+```tsx
+const { signIn } = useAuth();
+
+const handleSignIn = async () => {
+  const { error, data } = await signIn({
+    email: 'user@example.com',
+    password: 'securePassword123'
+  });
+  
+  if (error) {
+    console.error('Sign in failed:', error.message);
+  }
+};
+```
+
+<ParamField path="credentials" type="object" required>
+  Authentication credentials object.
+  
+  <Expandable title="Credentials Properties">
+    <ParamField path="email" type="string" required>
+      User's email address.
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      User's password.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns:** `Promise<{ error: any; data?: any }>`
+
+### signInWithGoogle
+
+Initiate Google OAuth sign-in flow.
+
+```tsx
+const { signInWithGoogle } = useAuth();
+
+const handleGoogleSignIn = async () => {
+  const { error } = await signInWithGoogle('box-123');
+  
+  if (error) {
+    console.error('Google sign in failed:', error.message);
+  }
+  // User will be redirected to Google OAuth flow
+};
+```
+
+<ParamField path="boxId" type="string" optional>
+  Optional box ID to associate with the user after OAuth completion. Stored in localStorage as `pending_box_id` and reconciled after redirect.
+</ParamField>
+
+**Returns:** `Promise<{ error: any }>`
+
+<Note>
+  The OAuth flow redirects to `/auth/callback`. The `onAuthStateChange` listener handles session and profile fetch after redirect.
+</Note>
+
+### signUp
+
+Register a new user account.
+
+```tsx
+const { signUp } = useAuth();
+
+const handleSignUp = async () => {
+  const { data, error } = await signUp({
+    email: 'newuser@example.com',
+    password: 'securePassword123',
+    options: {
+      data: {
+        full_name: 'John Doe'
+      }
+    }
+  });
+  
+  if (error) {
+    console.error('Sign up failed:', error.message);
+  }
+};
+```
+
+<ParamField path="credentials" type="object" required>
+  User registration credentials.
+  
+  <Expandable title="Credentials Properties">
+    <ParamField path="email" type="string" required>
+      New user's email address.
+    </ParamField>
+    <ParamField path="password" type="string" required>
+      New user's password.
+    </ParamField>
+    <ParamField path="options.data" type="object" optional>
+      Additional user metadata (e.g., `full_name`, custom fields).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Returns:** `Promise<{ data: any; error: any }>`
+
+<Note>
+  If `tenantBoxId` was provided to the `AuthProvider`, it will automatically be injected into `options.data.box_id` during registration.
+</Note>
+
+### resetPassword
+
+Send a password reset email to the user.
+
+```tsx
+const { resetPassword } = useAuth();
+
+const handlePasswordReset = async () => {
+  const { error } = await resetPassword('user@example.com');
+  
+  if (error) {
+    console.error('Password reset failed:', error.message);
+  } else {
+    console.log('Password reset email sent');
+  }
+};
+```
+
+<ParamField path="email" type="string" required>
+  Email address to send the password reset link to.
+</ParamField>
+
+**Returns:** `Promise<{ error: any }>`
+
+<Note>
+  The reset link redirects to `/reset-password` on your application domain.
+</Note>
+
+### updateUser
+
+Update the current user's attributes.
+
+```tsx
+const { updateUser } = useAuth();
+
+const handleUpdateEmail = async () => {
+  const { data, error } = await updateUser({
+    email: 'newemail@example.com'
+  });
+  
+  if (error) {
+    console.error('Update failed:', error.message);
+  }
+};
+```
+
+<ParamField path="attributes" type="object" required>
+  User attributes to update (e.g., `email`, `password`, `data`).
+</ParamField>
+
+**Returns:** `Promise<{ data: any; error: any }>`
+
+### signOut
+
+Sign out the current user and clear session state.
+
+```tsx
+const { signOut } = useAuth();
+
+const handleSignOut = async () => {
+  await signOut();
+  // User session cleared, state reset via onAuthStateChange
+};
+```
+
+**Returns:** `Promise<void>`
+
+### refreshProfile
+
+Manually refresh the user's profile and box data from the database.
+
+```tsx
+const { refreshProfile } = useAuth();
+
+const handleProfileUpdate = async () => {
+  // After updating profile in database
+  await refreshProfile();
+  // userProfile and currentBox are now up-to-date
+};
+```
+
+**Returns:** `Promise<void>`
+
+### setCurrentBox
+
+Manually set the current box in context.
+
+```tsx
+const { setCurrentBox } = useAuth();
+
+const handleBoxSwitch = (newBox: Box) => {
+  setCurrentBox(newBox);
+};
+```
+
+<ParamField path="box" type="Box | null" required>
+  The box object to set as current, or `null` to clear.
+</ParamField>
+
+## Multi-Tenant Behavior
+
+The `AuthContext` includes built-in support for multi-tenant architecture:
+
+1. **OAuth Box Association**: When `signInWithGoogle` is called with a `boxId` (or `tenantBoxId` is available), the box ID is stored in `localStorage` as `pending_box_id` and reconciled after OAuth redirect.
+
+2. **Profile Box Reconciliation**: If a user's profile lacks a `box_id` but the provider has a `tenantBoxId`, the profile is automatically updated with the correct box association.
+
+3. **Sign-Up Box Injection**: During registration, if `tenantBoxId` is provided to the provider, it's automatically added to the user's metadata.
+
+## TypeScript Types
+
+```typescript
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  userProfile: Profile | null;
+  currentBox: Box | null;
+  loading: boolean;
+  isAdmin: boolean;
+  isCoach: boolean;
+  isRoot: boolean;
+  isAthlete: boolean;
+  signIn: (credentials: any) => Promise<{ error: any; data?: any }>;
+  signInWithGoogle: (boxId?: string) => Promise<{ error: any }>;
+  signUp: (credentials: any) => Promise<{ data: any; error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updateUser: (attributes: any) => Promise<{ data: any; error: any }>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  setCurrentBox: (box: Box | null) => void;
+}
+```
+
+## Implementation Details
+
+<Expandable title="Session Management">
+  The context uses Supabase's `onAuthStateChange` listener to automatically update state when:
+  - User signs in or out
+  - Session is refreshed
+  - OAuth callback completes
+  
+  The profile is automatically fetched when a session is established.
+</Expandable>
+
+<Expandable title="Loading State">
+  The `loading` flag is `true` during:
+  - Initial session check
+  - Sign in/sign up operations
+  - Profile fetch operations
+  
+  A 5-second timeout is enforced on profile fetches to prevent indefinite loading states.
+</Expandable>
+
+<Expandable title="Box Data Loading">
+  When a user profile contains a `box_id`, the corresponding box data is automatically fetched from the `boxes` table and stored in `currentBox`.
+</Expandable>

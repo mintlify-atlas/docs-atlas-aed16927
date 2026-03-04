@@ -1,0 +1,352 @@
+---
+title: Database Migrations
+description: Guide to managing database schema changes and migrations in BoxApp
+---
+
+## Overview
+
+BoxApp uses Supabase migrations to manage database schema changes. All migrations are stored as SQL files in the `supabase/migrations/` directory and are version-controlled with the codebase.
+
+<Note>
+Migrations follow a timestamp-based naming convention: `YYYYMMDD_description.sql`
+</Note>
+
+## Migration Workflow
+
+### Running Migrations
+
+To apply all pending migrations to your local database:
+
+```bash
+npm run db:migrate
+```
+
+This command runs `npx supabase db push`, which:
+1. Connects to your local Supabase instance
+2. Compares migration files with applied migrations
+3. Executes any new migrations in chronological order
+
+<Tip>
+Migrations run automatically before starting the dev server via the `predev` script in package.json:8.
+</Tip>
+
+### Manual Migration Commands
+
+<CodeGroup>
+```bash Apply Migrations
+npx supabase db push
+```
+
+```bash Reset Database
+npx supabase db reset
+```
+
+```bash Check Status
+npx supabase db diff
+```
+
+```bash Create New Migration
+npx supabase migration new migration_name
+```
+</CodeGroup>
+
+## Migration Structure
+
+Migrations are located in `supabase/migrations/` and follow a strict naming pattern:
+
+```
+supabase/migrations/
+├── 20260206_create_avatars_bucket.sql
+├── 20260208_fix_audit_types.sql
+├── 20260208_security_audit_system.sql
+├── 20260209_competition_module_full.sql
+├── 20260215_full_crossfit_movements.sql
+├── 20260219_rls_multi_tenant_isolation.sql
+└── 20260302_add_subscription_status.sql
+```
+
+## Key Migrations
+
+### Multi-Tenant Isolation (RLS)
+
+The most critical migration establishes Row Level Security for multi-tenant data isolation:
+
+```sql 20260219_rls_multi_tenant_isolation.sql
+-- Helper function to get current user's box_id
+CREATE OR REPLACE FUNCTION public.current_user_box_id()
+RETURNS UUID LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT box_id FROM public.profiles WHERE id = auth.uid()
+$$;
+
+-- Example: WODs table tenant isolation
+ALTER TABLE public.wods ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "tenant_isolation_select" 
+  ON public.wods FOR SELECT TO authenticated 
+  USING (box_id = public.current_user_box_id());
+
+CREATE POLICY "tenant_isolation_insert" 
+  ON public.wods FOR INSERT TO authenticated 
+  WITH CHECK (box_id = public.current_user_box_id());
+```
+
+This migration:
+- Enables RLS on all tenant-scoped tables
+- Creates policies to restrict data access by `box_id`
+- Ensures users only see data for their gym
+
+<Warning>
+**Critical for production:** The RLS migration prevents data leakage between different gyms (boxes) using the platform. Never disable RLS on production tables.
+</Warning>
+
+### Competition Module
+
+Adds complete competition management functionality:
+
+```sql 20260209_competition_module_full.sql
+CREATE TABLE IF NOT EXISTS public.competitions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  box_id UUID NOT NULL REFERENCES public.boxes(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  start_date TIMESTAMPTZ NOT NULL,
+  end_date TIMESTAMPTZ NOT NULL,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### CrossFit Movements Library
+
+Seeds the database with a comprehensive CrossFit movement catalog:
+
+```sql 20260215_full_crossfit_movements.sql
+INSERT INTO public.movements (id, name, category, box_id, image_url) VALUES
+  (gen_random_uuid(), 'Back Squat', 'Weightlifting', v_box_id, '/movements/back-squat.svg'),
+  (gen_random_uuid(), 'Front Squat', 'Weightlifting', v_box_id, '/movements/front-squat.svg'),
+  -- ... hundreds more movements
+```
+
+### Security Audit System
+
+Implements audit logging for compliance:
+
+```sql 20260208_security_audit_system.sql
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id),
+  action TEXT NOT NULL,
+  table_name TEXT NOT NULL,
+  record_id UUID,
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Creating New Migrations
+
+<Steps>
+  <Step title="Generate migration file">
+    Create a new migration with a descriptive name:
+
+    ```bash
+    npx supabase migration new add_payment_methods
+    ```
+
+    This creates a new file: `supabase/migrations/YYYYMMDD_add_payment_methods.sql`
+  </Step>
+
+  <Step title="Write migration SQL">
+    Edit the generated file with your schema changes:
+
+    ```sql
+    -- Add payment_methods table
+    CREATE TABLE IF NOT EXISTS public.payment_methods (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      box_id UUID NOT NULL REFERENCES public.boxes(id) ON DELETE CASCADE,
+      stripe_payment_method_id TEXT UNIQUE NOT NULL,
+      is_default BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Enable RLS
+    ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
+
+    -- Tenant isolation policies
+    CREATE POLICY "tenant_isolation_select" 
+      ON public.payment_methods FOR SELECT TO authenticated 
+      USING (box_id = public.current_user_box_id());
+    ```
+  </Step>
+
+  <Step title="Test migration locally">
+    Apply the migration to your local database:
+
+    ```bash
+    npx supabase db push
+    ```
+
+    Verify the changes:
+
+    ```bash
+    npx supabase db diff
+    ```
+  </Step>
+
+  <Step title="Commit migration">
+    Add and commit the migration file:
+
+    ```bash
+    git add supabase/migrations/YYYYMMDD_add_payment_methods.sql
+    git commit -m "Add payment methods table"
+    ```
+  </Step>
+</Steps>
+
+## Migration Best Practices
+
+### Idempotency
+
+Always write migrations that can run multiple times safely:
+
+```sql
+-- ✅ Good: Checks if table exists
+CREATE TABLE IF NOT EXISTS public.my_table (
+  id UUID PRIMARY KEY
+);
+
+-- ❌ Bad: Fails if table exists
+CREATE TABLE public.my_table (
+  id UUID PRIMARY KEY
+);
+```
+
+### Defensive Checks
+
+Use conditional logic for schema modifications:
+
+```sql
+DO $$ 
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema='public' AND table_name='wods'
+  ) THEN
+    ALTER TABLE public.wods ENABLE ROW LEVEL SECURITY;
+    RAISE NOTICE 'RLS applied to: wods';
+  END IF;
+END $$;
+```
+
+### Always Include RLS
+
+For tenant-scoped tables, always enable Row Level Security:
+
+```sql
+-- 1. Create table
+CREATE TABLE IF NOT EXISTS public.new_table (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  box_id UUID NOT NULL REFERENCES public.boxes(id) ON DELETE CASCADE
+);
+
+-- 2. Enable RLS
+ALTER TABLE public.new_table ENABLE ROW LEVEL SECURITY;
+
+-- 3. Create policies
+CREATE POLICY "tenant_isolation_select" 
+  ON public.new_table FOR SELECT TO authenticated 
+  USING (box_id = public.current_user_box_id());
+```
+
+### Migration Headers
+
+Include descriptive headers in migration files:
+
+```sql
+-- ============================================================
+-- Migration: Add Payment Methods
+-- Date: 2026-03-04
+-- Description: Adds payment_methods table for storing
+--              Stripe payment method references
+-- ============================================================
+```
+
+## Troubleshooting
+
+### Migration Failures
+
+If a migration fails:
+
+1. **Check error message** - Read the SQL error carefully
+2. **Review recent changes** - Check what was added/modified
+3. **Reset if needed** - Reset database to known good state:
+
+```bash
+npx supabase db reset
+```
+
+<Warning>
+`db reset` drops all data and reapplies migrations from scratch. Use only in development.
+</Warning>
+
+### Schema Drift
+
+If your local schema differs from migrations:
+
+```bash
+# Generate a diff of changes
+npx supabase db diff
+
+# Save changes to a new migration
+npx supabase db diff | supabase migration new fix_schema_drift
+```
+
+### Permission Issues
+
+If you encounter permission errors:
+
+```sql
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON public.my_table TO authenticated;
+```
+
+## Production Migrations
+
+### Deploying Migrations
+
+For production deployments:
+
+1. **Test thoroughly** in local/staging environments
+2. **Review all changes** with your team
+3. **Deploy via Supabase dashboard** or CLI:
+
+```bash
+# Link to production project
+npx supabase link --project-ref your-project-ref
+
+# Push migrations
+npx supabase db push
+```
+
+### Rollback Strategy
+
+Create rollback migrations for critical changes:
+
+```sql 20260304_add_feature.sql
+-- Forward migration
+ALTER TABLE public.users ADD COLUMN new_field TEXT;
+```
+
+```sql 20260304_rollback_add_feature.sql  
+-- Rollback migration
+ALTER TABLE public.users DROP COLUMN IF EXISTS new_field;
+```
+
+<Tip>
+Store rollback migrations separately and apply manually only if needed. Don't include them in automatic migration runs.
+</Tip>
+
+## Additional Resources
+
+- [Supabase Migrations Documentation](https://supabase.com/docs/guides/cli/local-development#database-migrations)
+- [Row Level Security Guide](https://supabase.com/docs/guides/auth/row-level-security)
+- [PostgreSQL SQL Reference](https://www.postgresql.org/docs/current/sql.html)

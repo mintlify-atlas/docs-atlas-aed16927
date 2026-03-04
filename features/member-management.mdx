@@ -1,0 +1,236 @@
+---
+title: "Member Management"
+description: "Learn how to add, manage, and organize your gym members with BoxApp's comprehensive member management system."
+---
+
+## Overview
+
+BoxApp provides a complete member management system to handle athlete profiles, memberships, emergency contacts, medical history, and waivers.
+
+<CardGroup cols={2}>
+  <Card title="Member Profiles" icon="user">
+    Store contact info, emergency contacts, and medical history
+  </Card>
+  <Card title="Role Management" icon="shield">
+    Assign roles: Athletes, Coaches, Receptionists, or Admins
+  </Card>
+  <Card title="Membership Tracking" icon="calendar-check">
+    View active memberships and plan details
+  </Card>
+  <Card title="Waiver Management" icon="file-check">
+    Track digital waiver signatures for liability protection
+  </Card>
+</CardGroup>
+
+## Adding New Members
+
+You can add members through the Members page with automatic account creation:
+
+### Step-by-Step Process
+
+1. **Navigate** to Members page
+2. **Click** "Add Member" button (Members.tsx:322-326)
+3. **Fill in** member details:
+   - First name and last name
+   - Email address (required)
+   - Role (athlete, coach, receptionist)
+   - Medical history (optional)
+   - Emergency contact information
+
+<Note>
+When you create a member, BoxApp automatically creates a user account with the default password `BoxApp2026!`. Members should change this on first login.
+</Note>
+
+### Member Creation Code Flow
+
+```typescript
+// Members.tsx:214-223
+const { data, error } = await supabase.functions.invoke('create-member', {
+  body: {
+    email: newMember.email,
+    password: 'BoxApp2026!',
+    first_name: newMember.firstName,
+    last_name: newMember.lastName,
+    role_id: newMember.roleId,
+    box_id: currentBox?.id
+  }
+});
+```
+
+## Member Roles
+
+<Accordion title="Athlete">
+Standard gym members who can:
+- View class schedules
+- Book sessions
+- Track their WOD results
+- Submit session feedback
+- View their membership status
+</Accordion>
+
+<Accordion title="Coach">
+Instructors who can:
+- Manage class schedules
+- Create and publish WODs
+- View athlete attendance
+- All athlete permissions
+</Accordion>
+
+<Accordion title="Receptionist">
+Front desk staff who can:
+- Add and edit members
+- Assign memberships
+- View schedules
+- Limited admin access
+</Accordion>
+
+<Accordion title="Admin">
+Gym owners/managers with full access to:
+- All member management features
+- Billing and invoicing
+- Competition management
+- Box configuration
+</Accordion>
+
+## Member Details View
+
+Click on any member to view their complete profile (Members.tsx:692-764):
+
+### Contact Information
+- Full name and email
+- Join date
+- Current status (active/inactive/on hold)
+
+### Medical & Safety
+```typescript
+// Members.tsx:751-758
+<div className="medical-background">
+  <h3>Medical Background</h3>
+  <p>{selectedMember?.medical_history || 'No medical history on file'}</p>
+</div>
+```
+
+### Emergency Contacts
+- Contact name
+- Phone number
+
+### Waiver Status
+<Warning>
+Members with unsigned waivers are flagged with a red alert icon. Follow up to ensure compliance.
+</Warning>
+
+## Membership Assignment
+
+Assign or modify memberships directly from the member details:
+
+```typescript
+// Members.tsx:171-200
+const handleQuickAssignPlan = async (memberId: string) => {
+  const plan = plans.find((p: any) => p.id === selectedPlanId);
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + (plan?.duration_days || 30));
+
+  const { error } = await supabase.from('memberships').insert([{
+    athlete_id: memberId,
+    user_id: memberId,
+    plan_id: selectedPlanId,
+    box_id: currentBox.id,
+    status: 'active',
+    start_date: startDate.toISOString(),
+    end_date: endDate.toISOString()
+  }]);
+};
+```
+
+<Tip>
+The system automatically calculates end dates based on the plan's duration (typically 30 days).
+</Tip>
+
+## Searching and Filtering
+
+The member list supports real-time search:
+
+```typescript
+// Members.tsx:102-106
+const filteredMembers = members.filter(member =>
+  member.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  member.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  member.email.toLowerCase().includes(searchTerm.toLowerCase())
+);
+```
+
+## Password Reset
+
+Admins can reset member passwords (Members.tsx:147-169):
+
+1. **Navigate** to member details
+2. **Click** "Reset Password"
+3. **Confirm** the action
+
+<Note>
+Password is reset to `12345678`. Members will be required to change it on next login.
+</Note>
+
+```typescript
+// Members.tsx:155-160
+const { data, error } = await supabase.rpc('admin_reset_password', {
+  target_user_id: memberId
+});
+```
+
+## Editing Member Information
+
+Update member details through the edit dialog (Members.tsx:267-298):
+
+- Personal information (name)
+- Medical history
+- Emergency contacts
+- Role assignment
+- Status (active/inactive/on hold)
+
+## Member Status Badges
+
+```typescript
+// Members.tsx:302-309
+const getStatusVariant = (status: string) => {
+  switch (status) {
+    case 'active': return 'default';
+    case 'inactive': return 'destructive';
+    case 'on_hold': return 'secondary';
+    default: return 'outline';
+  }
+};
+```
+
+<CardGroup cols={3}>
+  <Card title="Active" icon="check-circle">
+    Member has valid membership and can attend classes
+  </Card>
+  <Card title="Inactive" icon="x-circle">
+    Membership expired or manually deactivated
+  </Card>
+  <Card title="On Hold" icon="pause-circle">
+    Temporary freeze - membership preserved but classes blocked
+  </Card>
+</CardGroup>
+
+## Pagination
+
+The member list displays 8 members per page with navigation controls (Members.tsx:108-112):
+
+```typescript
+const itemsPerPage = 8;
+const indexOfLastItem = currentPage * itemsPerPage;
+const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+const currentMembers = filteredMembers.slice(indexOfFirstItem, indexOfLastItem);
+const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+```
+
+## Best Practices
+
+1. **Collect medical history upfront**: Essential for coach awareness and safety
+2. **Verify emergency contacts**: Test contact numbers and update regularly
+3. **Enforce waiver signing**: Don't allow class attendance without signed waivers
+4. **Regular data audits**: Clean up inactive members quarterly
+5. **Use status changes**: Set members "on hold" instead of deleting during temporary absences

@@ -1,0 +1,138 @@
+---
+title: "Multi-Tenancy Features"
+description: "Understand how BoxApp's multi-tenant architecture enables you to manage multiple gyms with isolated data and custom branding."
+---
+
+## Overview
+
+BoxApp's multi-tenant architecture allows you to operate multiple CrossFit gyms ("boxes") from a single platform. Each box has completely isolated data, custom branding, and independent subscription management.
+
+<CardGroup cols={2}>
+  <Card title="Subdomain Routing" icon="globe">
+    Each gym gets its own branded subdomain (e.g., `yourbox.boxapp.com`)
+  </Card>
+  <Card title="Data Isolation" icon="shield">
+    Member data, schedules, and billing are completely separated by box
+  </Card>
+  <Card title="Subscription Status" icon="credit-card">
+    Independent subscription management per gym location
+  </Card>
+  <Card title="Custom Configuration" icon="sliders">
+    Each box can customize plans, schedules, and branding independently
+  </Card>
+</CardGroup>
+
+## How Multi-Tenancy Works
+
+### Tenant Resolution
+
+BoxApp identifies your gym based on the hostname or query parameter:
+
+```typescript
+// From TenantContext.tsx:29
+const tenantSlug = getTenantSlug();
+const isTenantSubdomain = tenantSlug !== null;
+```
+
+The `TenantProvider` loads your box configuration before rendering the app:
+
+```typescript
+// Fetch box by slug (TenantContext.tsx:42-46)
+const { data, error } = await supabase
+  .from('boxes')
+  .select('*')
+  .eq('slug', tenantSlug)
+  .single();
+```
+
+### Subscription Status
+
+BoxApp automatically checks your subscription status:
+
+```typescript
+// TenantContext.tsx:65-67
+const isSuspended =
+  tenantBox?.subscription_status === 'suspended' ||
+  tenantBox?.subscription_status === 'cancelled';
+```
+
+<Warning>
+If your subscription is suspended or cancelled, members will see a limited interface until you renew.
+</Warning>
+
+## Accessing Tenant Information
+
+Use the `useTenant` hook throughout your application:
+
+```typescript
+import { useTenant } from '@/contexts/TenantContext';
+
+function YourComponent() {
+  const { tenantBox, isSuspended, tenantNotFound } = useTenant();
+  
+  if (tenantNotFound) {
+    return <div>Box not found</div>;
+  }
+  
+  if (isSuspended) {
+    return <div>Subscription suspended</div>;
+  }
+  
+  return <div>Welcome to {tenantBox?.name}</div>;
+}
+```
+
+## Multi-Location Management
+
+<Note>
+Each box operates independently with its own:
+- Member database
+- Class schedules
+- WOD programming
+- Billing and invoices
+- Competition management
+</Note>
+
+### Box Switching
+
+If you manage multiple locations, you can switch between them using the box selector in the navigation. The system will:
+
+1. Update the current box context
+2. Reload all data specific to that location
+3. Maintain separate sessions and permissions
+
+## Benefits of Multi-Tenancy
+
+<Accordion title="Centralized Management">
+Manage multiple gym locations from a single dashboard while keeping data completely isolated.
+</Accordion>
+
+<Accordion title="Scalability">
+Easily add new locations without additional infrastructure setup.
+</Accordion>
+
+<Accordion title="Custom Branding">
+Each location can have its own branding, subdomain, and configuration.
+</Accordion>
+
+<Accordion title="Data Security">
+Row-level security ensures members can only access data from their registered box.
+</Accordion>
+
+## Best Practices
+
+<Tip>
+**Set unique slugs**: Choose memorable, SEO-friendly slugs for each box (e.g., `crossfit-downtown`, `boxfit-north`).
+</Tip>
+
+1. **Verify tenant loading**: Always check `isLoading` before accessing `tenantBox` data
+2. **Handle errors gracefully**: Display user-friendly messages when a box is not found
+3. **Monitor subscription status**: Alert admins before subscriptions expire
+4. **Use box IDs consistently**: Always filter queries by `currentBox?.id` to ensure data isolation
+
+## Development vs Production
+
+- **Development**: Use query parameters (e.g., `?box=your-slug`) for tenant resolution
+- **Production**: Automatically detects tenant from subdomain (e.g., `yourbox.boxapp.com`)
+
+The system handles both seamlessly through the `getTenantSlug()` utility function.

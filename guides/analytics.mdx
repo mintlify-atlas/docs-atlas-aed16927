@@ -1,0 +1,631 @@
+---
+title: Using Analytics
+description: Track performance metrics, identify at-risk athletes, and make data-driven decisions
+---
+
+# Using Analytics
+
+BoxApp's Analytics dashboard provides actionable insights into your box's health, member engagement, and revenue trends. Use these metrics to optimize operations, improve retention, and grow your business.
+
+## Overview
+
+The Analytics page surfaces key performance indicators (KPIs) and alerts across four main areas:
+- **Financial Metrics**: Revenue, LTV, and ticket size
+- **Retention Indicators**: Churn risk and inactivity alerts  
+- **Engagement Tracking**: Attendance patterns and community pulse
+- **Payment Monitoring**: Outstanding invoices and payment risk
+
+## Performance Cards
+
+At the top of the dashboard, four metric cards provide at-a-glance insights:
+
+### Lifetime Value (LTV)
+
+**What it measures**: Average revenue per member over their lifetime
+
+**Calculation**:
+```
+LTV = Total Revenue ÷ Total Members
+```
+
+**Displayed**:
+- Dollar amount (e.g., "$1,245.50")
+- Trend vs last month ("+8%")
+- Green up arrow for increases
+- Emerald color accent
+
+<Tip>
+  Healthy LTV for CrossFit boxes typically ranges from $800-$2,000. Higher LTV indicates strong retention and upsell success.
+</Tip>
+
+### Average Ticket
+
+**What it measures**: Average invoice value
+
+**Calculation**:
+```
+Avg Ticket = Total Revenue ÷ Total Invoices
+```
+
+**Use Cases**:
+- Track membership plan mix (more premium = higher ticket)
+- Measure retail/supplement sales impact  
+- Monitor private coaching upsells
+
+**Displayed**:
+- Dollar amount (e.g., "$148.75")
+- Trend percentage
+- Indigo color accent
+
+<Note>
+  Rising average ticket can indicate successful upselling or shift toward premium offerings. Declining may signal more discount signups.
+</Note>
+
+### Churn Risk
+
+**What it measures**: Number of athletes at risk of leaving
+
+**Calculation**:
+Members with no attendance in 10+ days
+
+**Displayed**:
+- Count of at-risk athletes
+- Trend vs last month
+- Red/rose color (alert indicator)
+- Alert triangle icon
+
+<Warning>
+  Churn risk should be your highest priority metric. These athletes need immediate outreach before they cancel.
+</Warning>
+
+### Community Pulse
+
+**What it measures**: Overall box health and engagement
+
+**Factors**:
+- Attendance consistency
+- Member satisfaction (from feedback)
+- Social interactions
+- Class booking rates
+
+**Displayed**:
+- Status text ("Stable", "Growing", "Needs Attention")
+- Trend percentage
+- Orange color accent
+- Heart icon
+
+## Inactivity Alerts
+
+The Inactivity Alert panel identifies athletes who haven't attended in 10+ days.
+
+### What You See
+
+**At-Risk Athlete Cards**:
+- Avatar with initials
+- Full name
+- "12 DAYS INACTIVE" label (example)
+- "ALERT COACH" button
+
+**Badge**: Shows total count (e.g., "3 AT RISK")
+
+### Understanding Inactivity
+
+**Why it matters**:
+- Inactivity is the #1 predictor of cancellation
+- Early intervention dramatically improves retention
+- 10 days is the critical threshold before disengagement
+
+**Common Causes**:
+- Injury or illness
+- Schedule changes
+- Loss of motivation
+- Financial constraints  
+- Feeling overwhelmed or not fitting in
+
+### Taking Action
+
+<Steps>
+  <Step title="Review At-Risk List">
+    Check the inactivity panel daily or weekly. BoxApp shows the top 3 most at-risk athletes, with a "View All" option if more exist.
+  </Step>
+
+  <Step title="Investigate Context">
+    Before reaching out:
+    - Check their booking history
+    - Review medical notes (injury?)
+    - Look at recent feedback scores (satisfaction dropping?)
+    - Check payment status (billing issue?)
+  </Step>
+
+  <Step title="Alert Coach">
+    Click "ALERT COACH" button:
+
+    The system:
+    1. Triggers the `coach-alerts` Edge Function
+    2. Sends notification to assigned coach or admin
+    3. Includes athlete name and inactivity details
+    4. Provides alert type (inactivity)
+    5. Logs the alert for follow-up tracking
+
+    <Note>
+      Coach alerts require an active session. Make sure you're logged in when triggering alerts.
+    </Note>
+  </Step>
+
+  <Step title="Personal Outreach">
+    Coaches should:
+    - Send personal text or email (not automated)
+    - Express genuine concern (not sales-y)
+    - Ask open-ended questions ("How are you?" not "Why did you stop coming?")
+    - Offer help ("Is there anything I can do?")
+    - Suggest low-pressure return ("Come to Open Gym this Saturday")
+  </Step>
+
+  <Step title="Track Outcome">
+    Monitor if the athlete:
+    - Returns to class
+    - Responds to outreach
+    - Needs additional support
+    - Decides to cancel (exit interview)
+  </Step>
+</Steps>
+
+<Tip>
+  The most effective retention message: "Hey [Name], I noticed you haven't been in lately. I wanted to check in and see how you're doing. Let me know if there's anything I can do to help." Simple, personal, caring.
+</Tip>
+
+## Payment Risk Monitoring
+
+The Payment Risk panel tracks athletes with outstanding invoices.
+
+### What You See
+
+**Unpaid Athlete Cards**:
+- Avatar with initials  
+- Full name
+- Debt amount (e.g., "DEBT: $185.00")
+- Bell icon for alerting
+
+**Badge**: Shows count (e.g., "3 PENDING")
+
+### How It Works
+
+**Detection Logic**:
+```javascript
+// BoxApp checks all invoices
+for each invoice:
+  if status == 'unpaid' OR status == 'overdue':
+    aggregate by user_id:
+      totalDebt += invoice.amount
+      invoiceCount++
+
+// Displays unique users with debt
+```
+
+**What Counts**:
+- Unpaid invoices
+- Overdue invoices
+- Multiple unpaid invoices are summed
+
+**What Doesn't Count**:
+- Paid invoices
+- Pending invoices (not yet due)
+- Invoices in other statuses
+
+### Payment Risk Workflow
+
+<Steps>
+  <Step title="Identify High-Risk Accounts">
+    Athletes with:
+    - Multiple unpaid invoices
+    - Long-overdue balances (30+ days)
+    - High debt totals
+
+    These require immediate attention.
+  </Step>
+
+  <Step title="Verify Billing Information">
+    Before reaching out:
+    - Check if payment method is valid
+    - Confirm billing address is current
+    - Look for failed payment attempts
+    - Review if athlete was notified
+  </Step>
+
+  <Step title="Send Payment Reminder">
+    Click the bell icon to alert coach/admin:
+
+    The notification includes:
+    - Athlete name
+    - Total debt amount
+    - Number of unpaid invoices
+    - Alert type: 'payment'
+
+    <Warning>
+      Payment conversations are sensitive. Always approach with empathy and assume positive intent. Many members simply forgot or had a card expire.
+    </Warning>
+  </Step>
+
+  <Step title="Offer Solutions">
+    If the athlete is having financial difficulty:
+    - Payment plan options
+    - Temporary membership hold
+    - Downgrade to lower-cost plan  
+    - Class pack instead of unlimited
+
+    Goal: Keep them training at a rate they can afford.
+  </Step>
+
+  <Step title="Escalate If Needed">
+    For repeatedly delinquent accounts:
+    - Restrict class booking
+    - Suspend membership (after notice)
+    - Send to collections (last resort)
+
+    Document all communication.
+  </Step>
+</Steps>
+
+### Best Practices for Collections
+
+**Timing**:
+- Day 1 overdue: Friendly automated reminder
+- Day 7 overdue: Personal email from admin
+- Day 14 overdue: Phone call
+- Day 30 overdue: Restrict access + payment plan offer
+- Day 60 overdue: Collections
+
+**Tone**:
+- Always assume it was an oversight
+- Never be accusatory or aggressive
+- Offer help and flexibility
+- Preserve the relationship
+
+<Tip>
+  Many payment issues are simple card expirations or changes. A quick "Hey, it looks like your card on file didn't go through. Can you update it?" solves most problems.
+</Tip>
+
+## Attendance Tracking
+
+### Attendance Chart
+
+The attendance visualization area shows growth trends over time.
+
+**Current Display**:
+- Placeholder with growth preview message
+- Coming soon: Line graphs and bar charts
+
+**Planned Features**:
+- Daily/weekly/monthly attendance
+- Attendance by session type
+- Peak hour analysis
+- Capacity utilization
+- Member attendance frequency distribution
+
+<Note>
+  Attendance data is collected from the bookings table. Future updates will visualize this data for trend analysis.
+</Note>
+
+### Attendance Insights (Coming Soon)
+
+Future metrics will include:
+
+**Attendance Rate**:
+```
+(Total Check-ins ÷ Total Possible Sessions) × 100
+```
+
+Target: 65-75% for monthly unlimited members
+
+**Average Visits Per Member**:
+```
+Total Check-ins ÷ Active Members
+```
+
+Target: 3-4 visits per week (12-16 per month)
+
+**Peak Hours**:
+Identify busiest class times to optimize:
+- Coach scheduling
+- Equipment availability
+- Class capacity
+
+## Competition Analytics
+
+### Upcoming Competition Card
+
+Displays your next scheduled competition with:
+- Competition name
+- Days until start ("STARTS IN 12 DAYS")
+- Registered athlete count ("45 ATHLETES REGISTERED")
+- "REGISTER ATHLETES" quick action
+
+<Tip>
+  Competition participation is a strong engagement indicator. Athletes training for an event have 80% higher retention rates.
+</Tip>
+
+### Competition Insights
+
+**Participation Tracking**:
+- Registration trends (are signups increasing?)
+- Repeat participants (measure loyalty)
+- Division distribution (which categories are popular?)
+- Performance benchmarks (box average vs individual)
+
+**Revenue Impact**:
+- Competition registration fees
+- Increased attendance during prep
+- Retail sales (apparel, supplements)
+- Private coaching upsells
+
+## Financial Dashboard Metrics
+
+### Available Data
+
+The analytics system calculates from your invoices table:
+
+**Total Revenue**:
+```sql
+SUM(amount) WHERE box_id = current_box
+```
+
+**Revenue by Period**:
+- This month vs last month
+- Quarter over quarter
+- Year over year
+
+**Revenue by Source**:
+- Membership dues
+- Drop-ins
+- Private coaching
+- Retail sales
+- Competition fees
+
+<Note>
+  All financial calculations exclude refunded or cancelled invoices.
+</Note>
+
+### Key Financial Ratios
+
+**Member LTV Calculation**:
+```
+LTV = (Avg Monthly Revenue per Member) × (Avg Member Lifespan in Months)
+```
+
+Example:
+- $150/month membership
+- 18-month average lifespan  
+- LTV = $2,700
+
+**Churn Rate** (Coming Soon):
+```
+Churn % = (Members Lost ÷ Starting Members) × 100
+```
+
+Target: < 5% monthly churn
+
+**Customer Acquisition Cost (CAC)** (Coming Soon):
+```
+CAC = Total Marketing Spend ÷ New Members
+```
+
+Rule: CAC should be < 1/3 of LTV
+
+## Notifications and Alerts
+
+Toast notifications appear when:
+- Coach alerts are triggered successfully
+- Errors occur (e.g., "No active session")
+- Data refreshes complete
+
+**Toast Types**:
+- **Success** (green): Action completed
+- **Error** (red): Something went wrong
+- **Info** (blue): Status update
+
+<Warning>
+  If you see "Failed to send alert: No active session", log out and log back in. The Edge Function requires a valid authentication session to execute.
+</Warning>
+
+## Using Analytics to Drive Growth
+
+### Weekly Review Routine
+
+<Steps>
+  <Step title="Monday Morning Review">
+    Check:
+    - Weekend attendance numbers
+    - New at-risk athletes from the week
+    - Outstanding payment issues
+    - Class capacity trends
+
+    Take immediate action on urgent items.
+  </Step>
+
+  <Step title="Mid-Week Check-in">
+    Review:
+    - Response to outreach efforts
+    - Updated attendance from at-risk athletes
+    - Payment status changes
+    - Upcoming competition registrations
+  </Step>
+
+  <Step title="Friday Planning">
+    Prepare for next week:
+    - Identify patterns in churn risk
+    - Plan retention initiatives
+    - Review financial targets
+    - Schedule coach meetings for at-risk follow-ups
+  </Step>
+
+  <Step title="Monthly Deep Dive">
+    Analyze trends:
+    - LTV changes over time
+    - Churn rate calculations
+    - Revenue growth
+    - Attendance patterns
+    - Membership mix shifts
+
+    Use insights to inform strategy.
+  </Step>
+</Steps>
+
+### Retention Campaigns
+
+Use analytics to trigger proactive campaigns:
+
+**7-Day Inactive**:
+- Friendly check-in text
+- "We miss you!" message
+- No pressure
+
+**10-Day Inactive** (Alert Threshold):
+- Coach personal outreach
+- Offer to help with barriers
+- Invite to specific class
+
+**14-Day Inactive**:
+- Admin/owner call
+- Understand challenges
+- Offer accommodations (schedule change, membership adjustment)
+
+**21-Day Inactive**:
+- Last-ditch retention offer
+- Membership hold option
+- Exit interview if canceling
+
+<Tip>
+  The best retention strategy is proactive engagement BEFORE athletes hit 10 days inactive. Build strong community and personal relationships so small issues don't become cancellations.
+</Tip>
+
+## Edge Function: Coach Alerts
+
+### How It Works
+
+When you click "ALERT COACH":
+
+```javascript
+// BoxApp calls Supabase Edge Function
+supabase.functions.invoke('coach-alerts', {
+  body: {
+    athlete_id: 'uuid',
+    athlete_name: 'John Doe',
+    alert_type: 'inactivity' | 'payment',
+    box_id: 'uuid'
+  }
+});
+```
+
+The function:
+1. Authenticates the request
+2. Looks up assigned coach for that athlete
+3. Sends notification (email, SMS, or in-app)
+4. Logs the alert for tracking
+5. Returns success or error
+
+<Note>
+  The function requires an active user session. Make sure you're logged in before triggering alerts.
+</Note>
+
+## Data Refresh
+
+Analytics data updates:
+- **Performance Cards**: On page load
+- **At-Risk Lists**: Real-time based on latest bookings
+- **Payment Risk**: Real-time based on invoice status
+- **Competition Data**: Real-time from registrations
+
+Manual refresh:
+- Reload the page to fetch latest data
+- No caching delays
+
+<Tip>
+  For most accurate data, refresh the Analytics page at the start of your review sessions.
+</Tip>
+
+## Troubleshooting
+
+<Accordion title="Inactivity alerts showing wrong athletes">
+  The 10-day threshold is calculated from the most recent booking created_at date.
+  
+  Verify:
+  - Bookings are being created correctly when athletes check in
+  - Check-in timestamps are accurate
+  - Box_id is correctly assigned to bookings
+  
+  If an athlete is shown but has been attending, check for duplicate profiles.
+</Accordion>
+
+<Accordion title="Payment risk not displaying all unpaid invoices">
+  The system only shows unpaid athletes where:
+  - Invoice status = 'unpaid' OR 'overdue'
+  - Invoice has a valid user_id
+  - User is linked to your box
+  
+  Check that invoices are properly assigned to athlete profiles.
+</Accordion>
+
+<Accordion title="LTV seems incorrect">
+  LTV calculation:
+  ```
+  Total Revenue from invoices ÷ Total Members (profiles)
+  ```
+  
+  This may seem low if:
+  - You have many inactive profiles inflating member count
+  - Recent signups haven't generated much revenue yet
+  - Some members are on free trials
+  
+  For more accurate LTV, calculate only for paying members.
+</Accordion>
+
+<Accordion title="Coach alerts not working">
+  If you see "Failed to trigger coach alert", check:
+  
+  1. You have an active session (try logging out and back in)
+  2. The Edge Function is deployed (contact support if new instance)
+  3. The athlete has a valid profile ID
+  4. Your box_id is correctly set
+  
+  The error message will indicate if it's a session issue.
+</Accordion>
+
+## Privacy and Data Security
+
+### Sensitive Information
+
+Analytics displays aggregated and individual data. Ensure:
+- Only authorized staff access Analytics
+- Payment information is handled securely  
+- Medical notes remain confidential
+- Alerts are sent to appropriate recipients only
+
+<Warning>
+  Never share screenshots of Analytics dashboards publicly. They contain personal member information including names, financial data, and engagement patterns.
+</Warning>
+
+### GDPR and Privacy Compliance
+
+When using member data:
+- Obtain consent for communications
+- Allow opt-out of retention outreach
+- Don't share data with third parties
+- Delete data upon request
+- Document your retention policies
+
+## Future Analytics Features
+
+Upcoming enhancements:
+
+- **Attendance Visualization**: Line/bar charts showing trends
+- **Revenue Forecasting**: Predicted MRR based on trends
+- **Cohort Analysis**: Retention by signup date
+- **Class Performance**: Which classes drive best retention
+- **Coach Effectiveness**: Retention rates by coach
+- **Member Lifetime Journey**: Engagement over time
+- **Predictive Churn**: AI-based risk scoring
+- **Automated Campaigns**: Trigger emails based on behaviors
+
+<Note>
+  BoxApp is continuously enhancing analytics. Check back regularly for new features and insights.
+</Note>

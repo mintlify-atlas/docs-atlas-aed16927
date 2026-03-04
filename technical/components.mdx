@@ -1,0 +1,471 @@
+---
+title: Component Library
+description: Overview of BoxApp's component architecture and UI library
+---
+
+## Overview
+
+BoxApp uses a component architecture built on **shadcn/ui** - a collection of reusable components built with Radix UI and Tailwind CSS. The component library is fully typed with TypeScript and follows a consistent design system.
+
+<Note>
+Components are designed to be copied into your project, not installed as a dependency. This gives you full control over the code.
+</Note>
+
+## Component Structure
+
+Components are organized into three main categories:
+
+```
+src/components/
+├── ui/                    # Base UI components (shadcn/ui)
+├── competitions/          # Feature-specific components
+└── [feature].tsx          # Top-level feature components
+```
+
+## UI Components
+
+Base components located in `src/components/ui/` provide the foundation for the entire application.
+
+### Available Components
+
+| Component | Description | Usage |
+|-----------|-------------|-------|
+| `Button` | Interactive button with variants | CTAs, form submissions, actions |
+| `Card` | Container with header/content/footer | Dashboard widgets, content blocks |
+| `Dialog` | Modal overlay for forms/confirmations | Create/edit forms, confirmations |
+| `Input` | Text input field | Forms, search, data entry |
+| `Select` | Dropdown selection | Filters, form selects |
+| `Table` | Data table with rows/cells | Member lists, leaderboards |
+| `Tabs` | Tabbed interface | Multi-section views |
+| `Avatar` | User profile image | User identity, profiles |
+| `Badge` | Small status indicator | Tags, status labels |
+| `Switch` | Toggle switch | Settings, feature flags |
+| `Progress` | Progress bar | Loading states, completion |
+| `Dropdown Menu` | Context menu | Actions, settings |
+
+### Configuration
+
+Component library configuration is defined in `components.json`:
+
+```json components.json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "src/index.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils"
+  }
+}
+```
+
+## Core UI Components
+
+### Button
+
+The Button component supports multiple variants and sizes:
+
+```tsx Example Usage
+import { Button } from '@/components/ui/button'
+
+// Primary button
+<Button>Click me</Button>
+
+// Destructive action
+<Button variant="destructive">Delete</Button>
+
+// Outline style
+<Button variant="outline">Cancel</Button>
+
+// Different sizes
+<Button size="sm">Small</Button>
+<Button size="lg">Large</Button>
+<Button size="icon">🔍</Button>
+```
+
+**Variants:**
+- `default` - Primary action with shadow
+- `destructive` - Dangerous actions (delete, remove)
+- `outline` - Secondary actions with border
+- `secondary` - Less prominent actions
+- `ghost` - Minimal styling
+- `link` - Text link style
+- `premium` - Special premium features
+
+**Implementation:**
+
+```tsx src/components/ui/button.tsx
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] active:brightness-95",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground shadow-apple-sm hover:brightness-110",
+        destructive: "bg-destructive text-destructive-foreground shadow-apple-sm hover:brightness-110",
+        // ... more variants
+      },
+      size: {
+        default: "h-11 px-6 py-2",
+        sm: "h-9 rounded-lg px-4 text-xs",
+        lg: "h-12 rounded-xl px-8 text-base",
+        icon: "h-10 w-10 rounded-full",
+      }
+    }
+  }
+)
+```
+
+### Card
+
+The Card component provides a container with optional header, content, and footer sections:
+
+```tsx Example Usage
+import { 
+  Card, 
+  CardHeader, 
+  CardTitle, 
+  CardDescription,
+  CardContent,
+  CardFooter 
+} from '@/components/ui/card'
+
+<Card>
+  <CardHeader>
+    <CardTitle>Workout of the Day</CardTitle>
+    <CardDescription>Monday, March 4, 2026</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <p>AMRAP 20 minutes...</p>
+  </CardContent>
+  <CardFooter>
+    <Button>View Details</Button>
+  </CardFooter>
+</Card>
+```
+
+**Styling:**
+
+```tsx src/components/ui/card.tsx
+const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "card rounded-2xl border border-border/60 bg-card text-card-foreground shadow-apple transition-colors",
+        className
+      )}
+      {...props}
+    />
+  )
+)
+```
+
+### Dialog
+
+Modals for forms, confirmations, and overlays:
+
+```tsx Example Usage
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button>Create Member</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>New Member</DialogTitle>
+    </DialogHeader>
+    <form>
+      {/* Form fields */}
+    </form>
+  </DialogContent>
+</Dialog>
+```
+
+## Feature Components
+
+### Authentication Components
+
+**ProtectedRoute** - Route guard with role-based access:
+
+```tsx src/components/ProtectedRoute.tsx
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+
+// Require authentication
+<ProtectedRoute>
+  <DashboardPage />
+</ProtectedRoute>
+
+// Restrict to specific roles
+<ProtectedRoute allowedRoles={['admin', 'coach']}>
+  <AdminPanel />
+</ProtectedRoute>
+```
+
+**Features:**
+- Loading state during auth check
+- Automatic redirect to login
+- Role-based access control
+- Suspended account handling
+
+### Dashboard Components
+
+**AthleteDashboard** - Member portal view:
+```tsx
+<AthleteDashboard />
+```
+
+Displays:
+- Today's WOD
+- Personal records
+- Upcoming classes
+- Performance metrics
+
+**CoachDashboard** - Coach/admin view:
+```tsx
+<CoachDashboard />
+```
+
+Displays:
+- WOD designer
+- Member management
+- Class scheduling
+- Analytics
+
+### WOD Designer
+
+Complex component for creating workouts:
+
+```tsx
+import { WODDesigner } from '@/components/WODDesigner'
+
+<WODDesigner 
+  onSave={(wod) => console.log(wod)}
+  initialData={existingWOD}
+/>
+```
+
+**Features:**
+- Drag-and-drop movement builder
+- Multiple WOD types (AMRAP, For Time, EMOM)
+- Movement search and selection
+- Scaling options
+- Real-time preview
+
+### Competition Components
+
+Located in `src/components/competitions/`:
+
+```tsx
+import { CompetitionManager } from '@/components/competitions/CompetitionManager'
+import { ScoreEntry } from '@/components/competitions/ScoreEntry'
+import { Leaderboard } from '@/components/competitions/Tabs/LeaderboardTab'
+```
+
+**Competition Module Structure:**
+```
+competitions/
+├── CompetitionManager.tsx     # Main competition interface
+├── HeatSchedule.tsx           # Heat scheduling
+├── ScoreEntry.tsx             # Score input forms
+├── TimelineView.tsx           # Event timeline
+└── Tabs/
+    ├── OverviewTab.tsx        # Competition details
+    ├── ParticipantsTab.tsx    # Registration management
+    ├── EventsTab.tsx          # Event configuration
+    ├── LeaderboardTab.tsx     # Live rankings
+    └── ScoringTab.tsx         # Score management
+```
+
+## Styling System
+
+### Tailwind CSS
+
+All components use Tailwind utility classes with CSS variables for theming:
+
+```css src/index.css
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --card: 0 0% 100%;
+  --border: 214.3 31.8% 91.4%;
+  /* ... more variables */
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  /* ... dark mode overrides */
+}
+```
+
+### Class Variance Authority
+
+Components use CVA for variant management:
+
+```tsx
+import { cva, type VariantProps } from "class-variance-authority"
+
+const buttonVariants = cva(
+  "base-classes",
+  {
+    variants: {
+      variant: { default: "...", destructive: "..." },
+      size: { default: "...", sm: "...", lg: "..." }
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default"
+    }
+  }
+)
+```
+
+### Utility Functions
+
+The `cn` utility merges Tailwind classes:
+
+```tsx src/lib/utils.ts
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+```
+
+Usage:
+```tsx
+<div className={cn("base-class", isActive && "active-class", className)} />
+```
+
+## Theme Provider
+
+BoxApp includes dark mode support via the ThemeProvider:
+
+```tsx src/components/theme-provider.tsx
+import { ThemeProvider } from '@/components/theme-provider'
+
+<ThemeProvider defaultTheme="system" storageKey="boxapp-theme">
+  <App />
+</ThemeProvider>
+```
+
+**Toggle dark mode:**
+```tsx
+import { ModeToggle } from '@/components/mode-toggle'
+
+<ModeToggle />
+```
+
+## Adding New Components
+
+<Steps>
+  <Step title="Install via shadcn CLI">
+    Add a new component from the shadcn library:
+
+    ```bash
+    npx shadcn-ui@latest add [component-name]
+    ```
+
+    Example:
+    ```bash
+    npx shadcn-ui@latest add toast
+    ```
+  </Step>
+
+  <Step title="Import and use">
+    Import the new component in your code:
+
+    ```tsx
+    import { Toast } from '@/components/ui/toast'
+    
+    <Toast>Success!</Toast>
+    ```
+  </Step>
+
+  <Step title="Customize as needed">
+    Since components are copied into your project, you can modify them:
+
+    ```tsx src/components/ui/toast.tsx
+    // Customize styles, behavior, variants, etc.
+    const Toast = forwardRef<HTMLDivElement, ToastProps>(
+      ({ className, ...props }, ref) => (
+        <div className={cn("custom-styles", className)} {...props} />
+      )
+    )
+    ```
+  </Step>
+</Steps>
+
+## Component Best Practices
+
+### Composition over Props
+
+Prefer composing components over complex prop APIs:
+
+```tsx
+// ✅ Good: Composable
+<Card>
+  <CardHeader>
+    <CardTitle>Title</CardTitle>
+  </CardHeader>
+  <CardContent>Content</CardContent>
+</Card>
+
+// ❌ Bad: Props overload
+<Card title="Title" content="Content" showHeader={true} />
+```
+
+### Type Safety
+
+Always type component props:
+
+```tsx
+interface MyComponentProps {
+  title: string
+  onSave: (data: FormData) => void
+  variant?: 'primary' | 'secondary'
+}
+
+const MyComponent = ({ title, onSave, variant = 'primary' }: MyComponentProps) => {
+  // Implementation
+}
+```
+
+### Forwarding Refs
+
+Use `forwardRef` for components that need ref access:
+
+```tsx
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, ...props }, ref) => (
+    <input ref={ref} className={cn("...", className)} {...props} />
+  )
+)
+Input.displayName = "Input"
+```
+
+### Accessibility
+
+All components include proper ARIA attributes:
+
+```tsx
+<Button aria-label="Close dialog" onClick={onClose}>
+  <XIcon aria-hidden="true" />
+</Button>
+```
+
+## Resources
+
+- [shadcn/ui Documentation](https://ui.shadcn.com)
+- [Radix UI Primitives](https://www.radix-ui.com/primitives)
+- [Tailwind CSS](https://tailwindcss.com)
+- [Class Variance Authority](https://cva.style)
