@@ -1,0 +1,160 @@
+{
+  "projectType": "saas",
+  "projectName": "BoxApp",
+  "projectDescription": "A comprehensive multi-tenant SaaS platform for CrossFit gym management with member tracking, WOD programming, competitions, and billing.",
+  "theme": "aspen",
+  "primaryColor": "#FF6B35",
+  "lightColor": "#FF8C5A",
+  "darkColor": "#E55A2B",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/multi-tenant",
+              "features/member-management",
+              "features/wod-programming",
+              "features/scheduling",
+              "features/competitions",
+              "features/billing"
+            ]
+          },
+          {
+            "group": "User Roles",
+            "pages": [
+              "roles/admin",
+              "roles/coach",
+              "roles/athlete"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/box-setup",
+              "guides/wod-designer",
+              "guides/scheduling-classes",
+              "guides/managing-members",
+              "guides/competitions",
+              "guides/analytics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Technical",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "technical/architecture",
+              "technical/database-schema",
+              "technical/authentication",
+              "technical/multi-tenancy"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "technical/development-setup",
+              "technical/environment-variables",
+              "technical/database-migrations",
+              "technical/components"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "technical/deployment",
+              "technical/supabase-setup",
+              "technical/hosting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Database Functions",
+            "pages": [
+              "api/functions/create-member",
+              "api/functions/reset-password"
+            ]
+          },
+          {
+            "group": "Context Providers",
+            "pages": [
+              "api/contexts/auth-context",
+              "api/contexts/tenant-context"
+            ]
+          },
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/hooks/use-language",
+              "api/hooks/use-notification",
+              "api/hooks/use-media-query"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-tenant architecture with custom domains and branding",
+    "Role-based access control (Admin, Coach, Athlete)",
+    "WOD (Workout of the Day) designer and programming",
+    "Class scheduling and booking system",
+    "Member and lead management",
+    "Competition management with live leaderboards",
+    "Billing and subscription management",
+    "Analytics and performance tracking",
+    "Benchmark tracking and progress monitoring",
+    "Movement library with video demonstrations",
+    "Multi-language support (i18n)",
+    "Audit logging and security features",
+    "Custom branding (logos, favicons, themes)",
+    "Mobile-responsive design"
+  ],
+  "publicApiSurface": [
+    "AuthContext - Authentication state and methods",
+    "TenantContext - Multi-tenant box resolution",
+    "useLanguage - Internationalization hook",
+    "useNotification - Toast notification hook",
+    "useMediaQuery - Responsive design hook",
+    "supabaseClient - Configured Supabase client",
+    "Dashboard - Main dashboard component",
+    "Members - Member management interface",
+    "Leads - Lead tracking interface",
+    "Wods - WOD programming interface",
+    "WODDesigner - WOD creation component",
+    "Schedule - Class scheduling interface",
+    "Competitions - Competition management",
+    "Billing - Subscription and payment management",
+    "Analytics - Performance analytics dashboard",
+    "Benchmarks - Benchmark tracking",
+    "Movements - Exercise library",
+    "Profile - User profile management",
+    "Settings - Box configuration settings",
+    "Roles - Role management interface",
+    "AuditLogs - Security audit logging"
+  ]
+}
